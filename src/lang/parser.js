@@ -385,7 +385,7 @@ export class Parser {
     const loc = this.locOfToken(tok)
 
     if (!tok.hasInterpolation) {
-      return AST.Text(tok.value, loc)
+      return AST.Text(tok.value.replace(/\\{/g, '{'), loc)
     }
 
     const parts = []
