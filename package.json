@@ -1,0 +1,29 @@
+{
+  "name": "nova",
+  "version": "1.0.0",
+  "description": "A browser-based programming language and IDE. Plain-English keywords, symbolic operators, optional type hints, full OOP, and an editor good enough to solve DSA problems and build real multi-file projects in.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "idb-keyval": "^6.3.0",
+    "lz-string": "^1.5.0",
+    "monaco-editor": "^0.56.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-react": "^4.7.0",
+    "tailwindcss": "^4.3.3",
+    "vite": "^6.4.3",
+    "vitest": "^2.1.9"
+  }
+}

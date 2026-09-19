@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap');
+
+:root {
+  /* surfaces — cool blue-black ink, layered */
+  --ink-900:    #101219;
+  --ink-800:    #161923;
+  --ink-750:    #1B1F2B;
+  --ink-700:    #222633;
+  --rule:       #2C3140;
+  --rule-soft:  #232735;
+
+  /* text — warm vellum, never pure white */
+  --vellum:     #E4DED0;
+  --vellum-mid: #A9A395;
+  --vellum-dim: #6E6A60;
+
+  /* pigments — syntax */
+  --vermilion:  #E05A4C;
+  --gold:       #D2A24C;
+  --verdigris:  #52B3A4;
+  --sage:       #9DBA6E;
+  --lapis:      #6D92D8;
+  --plum:       #B47CAE;
+  --graphite:   #5F5C55;
+  --iron:       #8A8578;
+
+  /* state */
+  --run:        #7FA65C;
+  --halt:       #C4564A;
+  --mark:       #D2A24C;
+  --focus:      #6D92D8;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--ink-900);
+  color: var(--vellum);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
