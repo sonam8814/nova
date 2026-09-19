@@ -256,13 +256,13 @@ export class Lexer {
       return
     }
 
-    if (TYPE_NAMES.has(lexeme)) {
-      this.addToken(TokenType.TYPE, lexeme, lexeme, startLine, startColumn, startPos, this.pos)
+    if (KEYWORDS.has(lexeme)) {
+      this.addToken(TokenType.KEYWORD, lexeme, lexeme, startLine, startColumn, startPos, this.pos)
       return
     }
 
-    if (KEYWORDS.has(lexeme)) {
-      this.addToken(TokenType.KEYWORD, lexeme, lexeme, startLine, startColumn, startPos, this.pos)
+    if (TYPE_NAMES.has(lexeme)) {
+      this.addToken(TokenType.TYPE, lexeme, lexeme, startLine, startColumn, startPos, this.pos)
       return
     }
 
