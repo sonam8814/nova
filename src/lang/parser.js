@@ -19,6 +19,7 @@ export class Parser {
     this.tokens = tokens
     this.fileName = fileName
     this.current = 0
+    this.loopDepth = 0
   }
 
   // --- Helpers ---
@@ -378,6 +379,404 @@ export class Parser {
     this.error(`Unexpected token '${t.lexeme || t.type}'.`, t, 'Expected an expression.')
   }
 
+  // --- Top-level parsing ---
+
+  parse() {
+    const body = []
+    const start = this.peek()
+    while (!this.isAtEnd()) {
+      body.push(this.statement())
+    }
+    const loc = body.length > 0
+      ? { line: body[0].loc.line, column: body[0].loc.column, start: body[0].loc.start, end: body[body.length - 1].loc.end }
+      : this.locOfToken(start)
+    return AST.Program(body, loc)
+  }
+
+  block() {
+    const stmts = []
+    while (
+      !this.isAtEnd() &&
+      !this.checkKeyword('done') &&
+      !this.checkKeyword('otherwise') &&
+      !this.checkKeyword('rescue') &&
+      !this.checkKeyword('always') &&
+      !this.isOrIf()
+    ) {
+      stmts.push(this.statement())
+    }
+    return stmts
+  }
+
+  statement() {
+    if (this.checkKeyword('remember') || this.checkKeyword('constant')) {
+      return this.declaration()
+    }
+    if (this.checkKeyword('set')) {
+      return this.assignment()
+    }
+    if (this.checkKeyword('show')) {
+      return this.showStatement()
+    }
+    if (this.checkKeyword('check')) {
+      return this.ifStatement()
+    }
+    if (this.checkKeyword('while')) {
+      return this.whileStatement()
+    }
+    if (this.checkKeyword('repeat')) {
+      return this.repeatStatement()
+    }
+    if (this.checkKeyword('count')) {
+      return this.countStatement()
+    }
+    if (this.checkKeyword('for')) {
+      return this.forEachStatement()
+    }
+    if (this.checkKeyword('keep')) {
+      return this.foreverStatement()
+    }
+    if (this.checkKeyword('define')) {
+      return this.funcDecl()
+    }
+    if (this.checkKeyword('give')) {
+      return this.returnStatement()
+    }
+    if (this.checkKeyword('skip')) {
+      return this.skipStatement()
+    }
+    if (this.checkKeyword('stop')) {
+      return this.stopStatement()
+    }
+    return this.exprStatement()
+  }
+
+  // --- Declarations and assignment ---
+
+  declaration() {
+    const start = this.advance()
+    const isConstant = start.value === 'constant'
+
+    let typeHint = null
+    if (this.check(TokenType.TYPE)) {
+      typeHint = this.advance().value
+    }
+
+    if (!this.check(TokenType.IDENT)) {
+      const t = this.peek()
+      if (t.type === TokenType.NUMBER || t.type === TokenType.TEXT) {
+        this.error(
+          `Expected a variable name after '${start.value}', but got '${t.lexeme}'.`,
+          t,
+          `Use '${start.value} myVar as ${t.lexeme}', not '${start.value} ${t.lexeme} as myVar'.`
+        )
+      }
+      this.error(`Expected a variable name after '${start.value}'.`, t)
+    }
+    const name = this.advance()
+
+    this.consumeKeyword('as', `Expected 'as' after variable name '${name.value}'.`, `Use '${start.value} ${name.value} as <value>'.`)
+    const value = this.parseExpression()
+
+    return AST.Declare(
+      name.value,
+      value,
+      isConstant,
+      typeHint,
+      { line: start.line, column: start.column, start: start.start, end: value.loc.end }
+    )
+  }
+
+  assignment() {
+    const start = this.advance() // consume 'set'
+
+    const target = this.parseAssignTarget()
+
+    this.consumeKeyword('to', "Expected 'to' after assignment target.", "Use 'set x to <value>'.")
+    const value = this.parseExpression()
+
+    return AST.Assign(
+      target,
+      value,
+      { line: start.line, column: start.column, start: start.start, end: value.loc.end }
+    )
+  }
+
+  parseAssignTarget() {
+    let target
+
+    if (this.checkKeyword('my')) {
+      const myTok = this.advance()
+      this.consume(TokenType.DOT, "Expected '.' after 'my'.")
+      const prop = this.consume(TokenType.IDENT, "Expected field name after 'my.'.")
+      target = AST.Property(AST.Ident('my', this.locOfToken(myTok)), prop.value, {
+        line: myTok.line, column: myTok.column, start: myTok.start, end: prop.end,
+      })
+    } else {
+      const name = this.consume(TokenType.IDENT, "Expected a variable name after 'set'.")
+      target = AST.Ident(name.value, this.locOfToken(name))
+    }
+
+    while (this.match(TokenType.DOT) || this.match(TokenType.LBRACKET)) {
+      const prev = this.previous()
+      if (prev.type === TokenType.DOT) {
+        const prop = this.consume(TokenType.IDENT, "Expected property name after '.'.")
+        target = AST.Property(target, prop.value, {
+          line: target.loc.line, column: target.loc.column, start: target.loc.start, end: prop.end,
+        })
+      } else {
+        const index = this.parseExpression()
+        this.consume(TokenType.RBRACKET, "Expected ']' after index.")
+        target = AST.Index(target, index, {
+          line: target.loc.line, column: target.loc.column, start: target.loc.start, end: this.previous().end,
+        })
+      }
+    }
+
+    return target
+  }
+
+  // --- Show ---
+
+  showStatement() {
+    const start = this.advance() // consume 'show'
+    const expressions = [this.parseExpression()]
+    while (this.match(TokenType.COMMA)) {
+      expressions.push(this.parseExpression())
+    }
+    return AST.Show(expressions, {
+      line: start.line, column: start.column, start: start.start,
+      end: expressions[expressions.length - 1].loc.end,
+    })
+  }
+
+  // --- Conditionals ---
+
+  ifStatement() {
+    const start = this.advance() // consume 'check'
+    this.consumeKeyword('if', "Expected 'if' after 'check'.", "Use 'check if <condition>'.")
+
+    const branches = []
+
+    const firstCondition = this.parseExpression()
+    const firstBody = this.block()
+    branches.push({ condition: firstCondition, body: firstBody })
+
+    while (this.isOrIf()) {
+      this.advance() // consume 'or'
+      this.advance() // consume 'if'
+      const condition = this.parseExpression()
+      const body = this.block()
+      branches.push({ condition, body })
+    }
+
+    let otherwise = null
+    if (this.matchKeyword('otherwise')) {
+      otherwise = this.block()
+    }
+
+    this.consumeKeyword('done', "Expected 'done' to close 'check if' block.")
+    return AST.If(branches, otherwise, {
+      line: start.line, column: start.column, start: start.start, end: this.previous().end,
+    })
+  }
+
+  // --- Loops ---
+
+  whileStatement() {
+    const start = this.advance() // consume 'while'
+    const condition = this.parseExpression()
+
+    this.loopDepth++
+    const body = this.block()
+    this.loopDepth--
+
+    this.consumeKeyword('done', "Expected 'done' to close 'while' loop.")
+    return AST.While(condition, body, {
+      line: start.line, column: start.column, start: start.start, end: this.previous().end,
+    })
+  }
+
+  repeatStatement() {
+    const start = this.advance() // consume 'repeat'
+    const count = this.parseExpression()
+    this.consumeKeyword('times', "Expected 'times' after repeat count.", "Use 'repeat 5 times'.")
+
+    let name = null
+    if (this.matchKeyword('as')) {
+      const ident = this.consume(TokenType.IDENT, "Expected variable name after 'as'.")
+      name = ident.value
+    }
+
+    this.loopDepth++
+    const body = this.block()
+    this.loopDepth--
+
+    this.consumeKeyword('done', "Expected 'done' to close 'repeat' loop.")
+    return AST.Repeat(count, name, body, {
+      line: start.line, column: start.column, start: start.start, end: this.previous().end,
+    })
+  }
+
+  countStatement() {
+    const start = this.advance() // consume 'count'
+    const ident = this.consume(TokenType.IDENT, "Expected variable name after 'count'.")
+    this.consumeKeyword('from', "Expected 'from' after variable name.", "Use 'count i from 1 to 10'.")
+    const from = this.parseExpression()
+
+    let isDown = false
+    if (this.checkKeyword('down')) {
+      this.advance()
+      isDown = true
+    }
+
+    this.consumeKeyword('to', "Expected 'to' in count loop.", "Use 'count i from 1 to 10'.")
+    const to = this.parseExpression()
+
+    let by = null
+    if (this.matchKeyword('by')) {
+      by = this.parseExpression()
+    }
+
+    this.loopDepth++
+    const body = this.block()
+    this.loopDepth--
+
+    this.consumeKeyword('done', "Expected 'done' to close 'count' loop.")
+    return AST.Count(ident.value, from, to, by, isDown, body, {
+      line: start.line, column: start.column, start: start.start, end: this.previous().end,
+    })
+  }
+
+  forEachStatement() {
+    const start = this.advance() // consume 'for'
+    this.consumeKeyword('each', "Expected 'each' after 'for'.", "Use 'for each item in list'.")
+
+    const first = this.consume(TokenType.IDENT, "Expected variable name after 'for each'.")
+
+    let keyName = first.value
+    let valueName = null
+
+    if (this.matchKeyword('to')) {
+      const second = this.consume(TokenType.IDENT, "Expected value variable name after 'to'.")
+      valueName = second.value
+    }
+
+    this.consumeKeyword('in', "Expected 'in' in for each loop.", "Use 'for each item in list'.")
+    const iterable = this.parseExpression()
+
+    this.loopDepth++
+    const body = this.block()
+    this.loopDepth--
+
+    this.consumeKeyword('done', "Expected 'done' to close 'for each' loop.")
+    return AST.ForEach(keyName, valueName, iterable, body, {
+      line: start.line, column: start.column, start: start.start, end: this.previous().end,
+    })
+  }
+
+  foreverStatement() {
+    const start = this.advance() // consume 'keep'
+    this.consumeKeyword('going', "Expected 'going' after 'keep'.", "Use 'keep going'.")
+
+    this.loopDepth++
+    const body = this.block()
+    this.loopDepth--
+
+    this.consumeKeyword('done', "Expected 'done' to close 'keep going' loop.")
+    return AST.Forever(body, {
+      line: start.line, column: start.column, start: start.start, end: this.previous().end,
+    })
+  }
+
+  // --- Functions ---
+
+  funcDecl() {
+    const start = this.advance() // consume 'define'
+    const name = this.consume(TokenType.IDENT, "Expected function name after 'define'.")
+
+    const params = []
+    if (this.matchKeyword('with')) {
+      do {
+        let type = null
+        if (this.check(TokenType.TYPE)) {
+          type = this.advance().value
+        }
+        const paramName = this.consume(TokenType.IDENT, "Expected parameter name.")
+        let defaultValue = null
+        if (this.matchKeyword('as')) {
+          defaultValue = this.parseExpression()
+        }
+        params.push({ name: paramName.value, type, default: defaultValue, loc: this.locOfToken(paramName) })
+      } while (this.match(TokenType.COMMA))
+    }
+
+    let returnType = null
+    if (this.matchKeyword('gives')) {
+      if (this.check(TokenType.TYPE)) {
+        returnType = this.advance().value
+      } else if (this.check(TokenType.IDENT)) {
+        returnType = this.advance().value
+      } else {
+        this.error("Expected a type name after 'gives'.")
+      }
+    }
+
+    const body = this.block()
+    this.consumeKeyword('done', "Expected 'done' to close 'define' block.")
+
+    return AST.FuncDecl(name.value, params, returnType, body, {
+      line: start.line, column: start.column, start: start.start, end: this.previous().end,
+    })
+  }
+
+  returnStatement() {
+    const start = this.advance() // consume 'give'
+    this.consumeKeyword('back', "Expected 'back' after 'give'.", "Use 'give back <value>'.")
+
+    let value = null
+    if (
+      !this.isAtEnd() &&
+      !this.checkKeyword('done') &&
+      !this.checkKeyword('otherwise') &&
+      !this.checkKeyword('rescue') &&
+      !this.checkKeyword('always') &&
+      !this.isOrIf()
+    ) {
+      value = this.parseExpression()
+    }
+
+    const end = value ? value.loc.end : this.previous().end
+    return AST.Return(value, {
+      line: start.line, column: start.column, start: start.start, end,
+    })
+  }
+
+  // --- Skip / Stop ---
+
+  skipStatement() {
+    const tok = this.advance()
+    if (this.loopDepth === 0) {
+      this.error("'skip' can only be used inside a loop.", tok, "Move this inside a 'while', 'repeat', 'count', 'for each', or 'keep going' block.")
+    }
+    return AST.Skip(this.locOfToken(tok))
+  }
+
+  stopStatement() {
+    const tok = this.advance()
+    if (this.loopDepth === 0) {
+      this.error("'stop' can only be used inside a loop.", tok, "Move this inside a 'while', 'repeat', 'count', 'for each', or 'keep going' block.")
+    }
+    return AST.Stop(this.locOfToken(tok))
+  }
+
+  // --- Expression statement ---
+
+  exprStatement() {
+    const expr = this.parseExpression()
+    return AST.ExprStmt(expr, expr.loc)
+  }
+
   // --- Interpolation ---
 
   parseText() {
@@ -470,14 +869,13 @@ export class Parser {
       } while (this.match(TokenType.COMMA))
     }
 
-    // Body is collected until 'done' — for now, we return a placeholder
-    // The full body parsing will come in Phase 3 (statement parser)
-    // For expression-only parsing, we store the params and let the statement
-    // parser handle the body later
+    const body = this.block()
+    this.consumeKeyword('done', "Expected 'done' to close 'action' block.")
+
     return {
       type: 'Action',
       params,
-      body: null, // will be filled by statement parser in Phase 3
+      body,
       loc: { line: start.line, column: start.column, start: start.start, end: this.previous().end },
     }
   }
