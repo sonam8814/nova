@@ -57,3 +57,65 @@ export function Call(callee, args, loc) {
 export function Interpolation(parts, loc) {
   return node('Interpolation', { parts }, loc)
 }
+
+// --- Statement nodes ---
+
+export function Program(body, loc) {
+  return node('Program', { body }, loc)
+}
+
+export function Declare(name, value, isConstant, typeHint, loc) {
+  return node('Declare', { name, value, isConstant, typeHint }, loc)
+}
+
+export function Assign(target, value, loc) {
+  return node('Assign', { target, value }, loc)
+}
+
+export function Show(expressions, loc) {
+  return node('Show', { expressions }, loc)
+}
+
+export function If(branches, otherwise, loc) {
+  return node('If', { branches, otherwise }, loc)
+}
+
+export function While(condition, body, loc) {
+  return node('While', { condition, body }, loc)
+}
+
+export function Repeat(count, name, body, loc) {
+  return node('Repeat', { count, name, body }, loc)
+}
+
+export function Count(name, from, to, by, isDown, body, loc) {
+  return node('Count', { name, from, to, by, isDown, body }, loc)
+}
+
+export function ForEach(keyName, valueName, iterable, body, loc) {
+  return node('ForEach', { keyName, valueName, iterable, body }, loc)
+}
+
+export function Forever(body, loc) {
+  return node('Forever', { body }, loc)
+}
+
+export function FuncDecl(name, params, returnType, body, loc) {
+  return node('FuncDecl', { name, params, returnType, body }, loc)
+}
+
+export function Return(value, loc) {
+  return node('Return', { value }, loc)
+}
+
+export function Skip(loc) {
+  return node('Skip', {}, loc)
+}
+
+export function Stop(loc) {
+  return node('Stop', {}, loc)
+}
+
+export function ExprStmt(expression, loc) {
+  return node('ExprStmt', { expression }, loc)
+}
