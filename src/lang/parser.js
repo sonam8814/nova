@@ -84,6 +84,14 @@ export class Parser {
     throw new ParseError(message, this.fileName, t.line, t.column, hint)
   }
 
+  consumePropertyName() {
+    const t = this.peek()
+    if (t.type === TokenType.IDENT || t.type === TokenType.KEYWORD || t.type === TokenType.TYPE) {
+      return this.advance()
+    }
+    throw new ParseError("Expected property name after '.'.", this.fileName, t.line, t.column, null)
+  }
+
   error(message, token, hint) {
     const t = token || this.peek()
     throw new ParseError(message, this.fileName, t.line, t.column, hint)
@@ -245,7 +253,7 @@ export class Parser {
         expr = AST.Index(expr, index, { line: start.loc.line, column: start.loc.column, start: start.loc.start, end: this.previous().end })
       } else if (this.match(TokenType.DOT)) {
         const start = expr
-        const name = this.consume(TokenType.IDENT, "Expected property name after '.'.")
+        const name = this.consumePropertyName()
         expr = AST.Property(expr, name.value, { line: start.loc.line, column: start.loc.column, start: start.loc.start, end: name.end })
       } else {
         break
@@ -508,7 +516,7 @@ export class Parser {
     if (this.checkKeyword('my')) {
       const myTok = this.advance()
       this.consume(TokenType.DOT, "Expected '.' after 'my'.")
-      const prop = this.consume(TokenType.IDENT, "Expected field name after 'my.'.")
+      const prop = this.consumePropertyName()
       target = AST.Property(AST.Ident('my', this.locOfToken(myTok)), prop.value, {
         line: myTok.line, column: myTok.column, start: myTok.start, end: prop.end,
       })
@@ -520,7 +528,7 @@ export class Parser {
     while (this.match(TokenType.DOT) || this.match(TokenType.LBRACKET)) {
       const prev = this.previous()
       if (prev.type === TokenType.DOT) {
-        const prop = this.consume(TokenType.IDENT, "Expected property name after '.'.")
+        const prop = this.consumePropertyName()
         target = AST.Property(target, prop.value, {
           line: target.loc.line, column: target.loc.column, start: target.loc.start, end: prop.end,
         })
