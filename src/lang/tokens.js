@@ -78,7 +78,6 @@ export const KEYWORDS = new Map([
   ['parent', 'KEYWORD'],
   ['new', 'KEYWORD'],
   ['is', 'KEYWORD'],
-  ['a', 'KEYWORD'],
   ['not', 'KEYWORD'],
   ['and', 'KEYWORD'],
   ['yes', 'KEYWORD'],

@@ -146,7 +146,7 @@ export class Parser {
           this.advance() // consume 'not'
           const right = this.comparison()
           left = AST.Binary(left, 'is not', right, this.locFromNodes(left, right))
-        } else if (next && next.type === TokenType.KEYWORD && next.value === 'a') {
+        } else if (next && next.type === TokenType.IDENT && next.value === 'a') {
           this.advance() // consume 'is'
           this.advance() // consume 'a'
           const right = this.comparison()

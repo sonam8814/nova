@@ -11,7 +11,7 @@ describe('lang config', () => {
   })
 
   it('exports depth and step limits', () => {
-    expect(MAX_DEPTH).toBe(10000)
+    expect(MAX_DEPTH).toBe(1000)
     expect(MAX_STEPS).toBe(50_000_000)
   })
 })
