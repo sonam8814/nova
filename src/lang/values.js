@@ -60,3 +60,15 @@ export function isTruthy(v) {
   if (v === '') return false
   return true
 }
+
+export function novaFunction(name, params, returnType, body, closure) {
+  return {
+    _type: 'function',
+    name: name || null,
+    params,
+    returnType: returnType || null,
+    body,
+    closure,
+    boundThis: null,
+  }
+}

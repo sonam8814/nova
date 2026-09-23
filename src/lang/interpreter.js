@@ -1,6 +1,6 @@
 import { Environment } from './environment.js'
-import { typeName, toDisplay, isTruthy } from './values.js'
-import { MAX_STEPS } from './config.js'
+import { typeName, toDisplay, isTruthy, novaFunction } from './values.js'
+import { MAX_STEPS, MAX_DEPTH } from './config.js'
 
 export class RuntimeError extends Error {
   constructor(kind, message, hint, loc) {
@@ -21,6 +21,13 @@ export class ContinueSignal {
   constructor() { this._signal = 'continue' }
 }
 
+export class ReturnSignal {
+  constructor(value) {
+    this._signal = 'return'
+    this.value = value
+  }
+}
+
 export class Interpreter {
   constructor({ output, fileName = 'main.nova' } = {}) {
     this.output = output || (() => {})
@@ -28,9 +35,12 @@ export class Interpreter {
     this.globals = new Environment()
     this.env = this.globals
     this.steps = 0
+    this.callStack = []
+    this.depth = 0
   }
 
   run(program) {
+    this.hoistFunctions(program.body)
     for (const stmt of program.body) {
       this.execute(stmt)
     }
@@ -60,6 +70,8 @@ export class Interpreter {
       case 'Count': return this.execCount(node)
       case 'ForEach': return this.execForEach(node)
       case 'Forever': return this.execForever(node)
+      case 'FuncDecl': return this.execFuncDecl(node)
+      case 'Return': return this.execReturn(node)
       case 'Skip': throw new ContinueSignal()
       case 'Stop': throw new BreakSignal()
       case 'ExprStmt': return this.evaluate(node.expression)
@@ -81,6 +93,8 @@ export class Interpreter {
       case 'ListLit': return this.evalListLit(node)
       case 'MapLit': return this.evalMapLit(node)
       case 'Index': return this.evalIndex(node)
+      case 'Call': return this.evalCall(node)
+      case 'Action': return this.evalAction(node)
       case 'Interpolation': return this.evalInterpolation(node)
       default:
         throw this.error('RuntimeError', `Cannot evaluate '${node.type}' yet.`, null, node.loc)
@@ -339,9 +353,93 @@ export class Interpreter {
   }
 
   executeBlock(body) {
+    this.hoistFunctions(body)
     for (const stmt of body) {
       this.execute(stmt)
     }
+  }
+
+  hoistFunctions(stmts) {
+    for (const stmt of stmts) {
+      if (stmt.type === 'FuncDecl') {
+        const fn = novaFunction(stmt.name, stmt.params, stmt.returnType, stmt.body, this.env)
+        this.env.declare(stmt.name, fn, {})
+      }
+    }
+  }
+
+  execFuncDecl(_node) {
+    // Already hoisted — nothing to do at execution time
+  }
+
+  execReturn(node) {
+    const value = node.value ? this.evaluate(node.value) : null
+    throw new ReturnSignal(value)
+  }
+
+  evalCall(node) {
+    const callee = this.evaluate(node.callee)
+    const args = node.args.map(a => this.evaluate(a))
+
+    if (!callee || callee._type !== 'function') {
+      throw this.error('TypeError', `'${toDisplay(callee)}' is not callable.`, null, node.loc)
+    }
+
+    return this.callFunction(callee, args, node.loc)
+  }
+
+  callFunction(fn, args, loc) {
+    const required = fn.params.filter(p => p.default === null).length
+    const total = fn.params.length
+
+    if (args.length < required || args.length > total) {
+      const name = fn.name || 'anonymous action'
+      if (required === total) {
+        throw this.error('TypeError', `'${name}' expects ${total} argument(s), got ${args.length}.`, null, loc)
+      } else {
+        throw this.error('TypeError', `'${name}' expects ${required} to ${total} argument(s), got ${args.length}.`, null, loc)
+      }
+    }
+
+    this.depth++
+    if (this.depth > MAX_DEPTH) {
+      throw this.error('DepthError', `Maximum call depth of ${MAX_DEPTH} exceeded.`, 'Check for infinite recursion.', loc)
+    }
+
+    const callEnv = new Environment(fn.closure)
+
+    for (let i = 0; i < fn.params.length; i++) {
+      const param = fn.params[i]
+      const value = i < args.length ? args[i] : this.evaluate(param.default)
+      callEnv.declare(param.name, value, {})
+    }
+
+    const frame = { name: fn.name || '<anonymous>', file: this.fileName, line: loc ? loc.line : null }
+    this.callStack.push(frame)
+
+    const prevEnv = this.env
+    this.env = callEnv
+    let result = null
+
+    try {
+      this.executeBlock(fn.body)
+    } catch (e) {
+      if (e instanceof ReturnSignal) {
+        result = e.value
+      } else {
+        throw e
+      }
+    } finally {
+      this.env = prevEnv
+      this.depth--
+      this.callStack.pop()
+    }
+
+    return result
+  }
+
+  evalAction(node) {
+    return novaFunction(null, node.params, null, node.body, this.env)
   }
 
   // --- Expressions ---
