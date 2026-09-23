@@ -1,6 +1,8 @@
 import { Environment } from './environment.js'
 import { typeName, toDisplay, isTruthy, novaFunction } from './values.js'
 import { MAX_STEPS, MAX_DEPTH } from './config.js'
+import { getListMethod } from './stdlib/list.js'
+import { getMapMethod } from './stdlib/map.js'
 
 export class RuntimeError extends Error {
   constructor(kind, message, hint, loc) {
@@ -93,6 +95,7 @@ export class Interpreter {
       case 'ListLit': return this.evalListLit(node)
       case 'MapLit': return this.evalMapLit(node)
       case 'Index': return this.evalIndex(node)
+      case 'Property': return this.evalProperty(node)
       case 'Call': return this.evalCall(node)
       case 'Action': return this.evalAction(node)
       case 'Interpolation': return this.evalInterpolation(node)
@@ -385,10 +388,18 @@ export class Interpreter {
       throw this.error('TypeError', `'${toDisplay(callee)}' is not callable.`, null, node.loc)
     }
 
+    if (callee._native) {
+      return callee._native(args)
+    }
+
     return this.callFunction(callee, args, node.loc)
   }
 
   callFunction(fn, args, loc) {
+    if (fn._native) {
+      return fn._native(args)
+    }
+
     const required = fn.params.filter(p => p.default === null).length
     const total = fn.params.length
 
@@ -620,6 +631,38 @@ export class Interpreter {
     }
 
     throw this.error('TypeError', `Cannot index into ${typeName(obj)}.`, null, node.loc)
+  }
+
+  evalProperty(node) {
+    const obj = this.evaluate(node.object)
+
+    if (obj && obj._type === 'list') {
+      const method = getListMethod(
+        obj, node.name,
+        (fn, args, loc) => this.callFunction(fn, args, loc),
+        (kind, msg, hint, loc) => this.error(kind, msg, hint, loc),
+        node.loc
+      )
+      if (method) return method
+      throw this.error('NameError', `List has no method '${node.name}'.`, null, node.loc)
+    }
+
+    if (obj && obj._type === 'map') {
+      const method = getMapMethod(
+        obj, node.name,
+        (kind, msg, hint, loc) => this.error(kind, msg, hint, loc),
+        node.loc
+      )
+      if (method) return method
+      throw this.error('NameError', `Map has no method '${node.name}'.`, null, node.loc)
+    }
+
+    if (obj && obj._type === 'instance') {
+      if (obj.fields.has(node.name)) return obj.fields.get(node.name)
+      throw this.error('NameError', `'${obj.className}' has no field '${node.name}'.`, null, node.loc)
+    }
+
+    throw this.error('TypeError', `Cannot access property '${node.name}' on ${typeName(obj)}.`, null, node.loc)
   }
 
   evalInterpolation(node) {
