@@ -1,5 +1,6 @@
 import { Environment } from './environment.js'
 import { typeName, toDisplay, isTruthy } from './values.js'
+import { MAX_STEPS } from './config.js'
 
 export class RuntimeError extends Error {
   constructor(kind, message, hint, loc) {
@@ -12,17 +13,38 @@ export class RuntimeError extends Error {
   }
 }
 
+export class BreakSignal {
+  constructor() { this._signal = 'break' }
+}
+
+export class ContinueSignal {
+  constructor() { this._signal = 'continue' }
+}
+
 export class Interpreter {
   constructor({ output, fileName = 'main.nova' } = {}) {
     this.output = output || (() => {})
     this.fileName = fileName
     this.globals = new Environment()
     this.env = this.globals
+    this.steps = 0
   }
 
   run(program) {
     for (const stmt of program.body) {
       this.execute(stmt)
+    }
+  }
+
+  checkStepLimit(loc) {
+    this.steps++
+    if (this.steps > MAX_STEPS) {
+      throw this.error(
+        'RuntimeError',
+        'This program ran too long — check for a loop that never ends.',
+        null,
+        loc
+      )
     }
   }
 
@@ -32,6 +54,14 @@ export class Interpreter {
       case 'Declare': return this.execDeclare(node)
       case 'Assign': return this.execAssign(node)
       case 'Show': return this.execShow(node)
+      case 'If': return this.execIf(node)
+      case 'While': return this.execWhile(node)
+      case 'Repeat': return this.execRepeat(node)
+      case 'Count': return this.execCount(node)
+      case 'ForEach': return this.execForEach(node)
+      case 'Forever': return this.execForever(node)
+      case 'Skip': throw new ContinueSignal()
+      case 'Stop': throw new BreakSignal()
       case 'ExprStmt': return this.evaluate(node.expression)
       default:
         throw this.error('RuntimeError', `Cannot execute '${node.type}' yet.`, null, node.loc)
@@ -134,6 +164,184 @@ export class Interpreter {
     const values = node.expressions.map(e => this.evaluate(e))
     const text = values.map(v => toDisplay(v)).join(' ')
     this.output(text)
+  }
+
+  execIf(node) {
+    for (const branch of node.branches) {
+      const condition = this.evaluate(branch.condition)
+      if (isTruthy(condition)) {
+        this.executeBlock(branch.body)
+        return
+      }
+    }
+    if (node.otherwise) {
+      this.executeBlock(node.otherwise)
+    }
+  }
+
+  execWhile(node) {
+    while (isTruthy(this.evaluate(node.condition))) {
+      this.checkStepLimit(node.loc)
+      try {
+        this.executeBlock(node.body)
+      } catch (e) {
+        if (e instanceof BreakSignal) break
+        if (e instanceof ContinueSignal) continue
+        throw e
+      }
+    }
+  }
+
+  execRepeat(node) {
+    const count = this.evaluate(node.count)
+    if (typeof count !== 'number' || !Number.isInteger(count)) {
+      throw this.error('TypeError', `Repeat count must be an integer, got ${typeName(count)}.`, null, node.loc)
+    }
+    const loopEnv = new Environment(this.env)
+    const prevEnv = this.env
+    this.env = loopEnv
+    try {
+      for (let i = 0; i < count; i++) {
+        this.checkStepLimit(node.loc)
+        if (node.name) {
+          if (i === 0) {
+            loopEnv.declare(node.name, i, {})
+          } else {
+            loopEnv.assign(node.name, i)
+          }
+        }
+        try {
+          this.executeBlock(node.body)
+        } catch (e) {
+          if (e instanceof BreakSignal) break
+          if (e instanceof ContinueSignal) continue
+          throw e
+        }
+      }
+    } finally {
+      this.env = prevEnv
+    }
+  }
+
+  execCount(node) {
+    const from = this.evaluate(node.from)
+    const to = this.evaluate(node.to)
+    const by = node.by ? this.evaluate(node.by) : 1
+
+    if (typeof from !== 'number') throw this.error('TypeError', `Count 'from' must be a number, got ${typeName(from)}.`, null, node.loc)
+    if (typeof to !== 'number') throw this.error('TypeError', `Count 'to' must be a number, got ${typeName(to)}.`, null, node.loc)
+    if (typeof by !== 'number' || by <= 0) throw this.error('TypeError', `Count 'by' must be a positive number.`, null, node.loc)
+
+    const loopEnv = new Environment(this.env)
+    const prevEnv = this.env
+    this.env = loopEnv
+    loopEnv.declare(node.name, from, {})
+
+    try {
+      if (node.isDown) {
+        for (let i = from; i >= to; i -= by) {
+          this.checkStepLimit(node.loc)
+          loopEnv.assign(node.name, i)
+          try {
+            this.executeBlock(node.body)
+          } catch (e) {
+            if (e instanceof BreakSignal) break
+            if (e instanceof ContinueSignal) continue
+            throw e
+          }
+        }
+      } else {
+        for (let i = from; i <= to; i += by) {
+          this.checkStepLimit(node.loc)
+          loopEnv.assign(node.name, i)
+          try {
+            this.executeBlock(node.body)
+          } catch (e) {
+            if (e instanceof BreakSignal) break
+            if (e instanceof ContinueSignal) continue
+            throw e
+          }
+        }
+      }
+    } finally {
+      this.env = prevEnv
+    }
+  }
+
+  execForEach(node) {
+    const iterable = this.evaluate(node.iterable)
+    const loopEnv = new Environment(this.env)
+    const prevEnv = this.env
+    this.env = loopEnv
+
+    let items
+
+    if (typeof iterable === 'string') {
+      items = iterable.split('').map(ch => [ch])
+    } else if (iterable && iterable._type === 'list') {
+      items = iterable.elements.map(el => [el])
+    } else if (iterable && iterable._type === 'map') {
+      if (node.valueName) {
+        items = []
+        for (const [k, v] of iterable.entries) {
+          items.push([k, v])
+        }
+      } else {
+        items = []
+        for (const k of iterable.entries.keys()) {
+          items.push([k])
+        }
+      }
+    } else {
+      throw this.error('TypeError', `Cannot iterate over ${typeName(iterable)}.`, "'for each' works on text, list, and map.", node.loc)
+    }
+
+    let first = true
+    try {
+      for (const vals of items) {
+        this.checkStepLimit(node.loc)
+        if (first) {
+          loopEnv.declare(node.keyName, vals[0], {})
+          if (node.valueName) {
+            loopEnv.declare(node.valueName, vals[1], {})
+          }
+          first = false
+        } else {
+          loopEnv.assign(node.keyName, vals[0])
+          if (node.valueName) {
+            loopEnv.assign(node.valueName, vals[1])
+          }
+        }
+        try {
+          this.executeBlock(node.body)
+        } catch (e) {
+          if (e instanceof BreakSignal) break
+          if (e instanceof ContinueSignal) continue
+          throw e
+        }
+      }
+    } finally {
+      this.env = prevEnv
+    }
+  }
+
+  execForever(node) {
+    while (true) {
+      this.checkStepLimit(node.loc)
+      try {
+        this.executeBlock(node.body)
+      } catch (e) {
+        if (e instanceof BreakSignal) break
+        if (e instanceof ContinueSignal) continue
+        throw e
+      }
+    }
+  }
+
+  executeBlock(body) {
+    for (const stmt of body) {
+      this.execute(stmt)
+    }
   }
 
   // --- Expressions ---
