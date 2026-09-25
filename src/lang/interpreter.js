@@ -4,6 +4,7 @@ import { MAX_STEPS, MAX_DEPTH } from './config.js'
 import { getListMethod } from './stdlib/list.js'
 import { getMapMethod } from './stdlib/map.js'
 import { getTextMethod } from './stdlib/text.js'
+import { registerGlobals } from './stdlib/globals.js'
 
 export class RuntimeError extends Error {
   constructor(kind, message, hint, loc) {
@@ -40,6 +41,7 @@ export class Interpreter {
     this.steps = 0
     this.callStack = []
     this.depth = 0
+    registerGlobals(this.globals, (kind, msg, hint, loc) => this.error(kind, msg, hint, loc))
   }
 
   run(program) {
