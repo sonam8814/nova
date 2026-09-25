@@ -3,6 +3,7 @@ import { typeName, toDisplay, isTruthy, novaFunction } from './values.js'
 import { MAX_STEPS, MAX_DEPTH } from './config.js'
 import { getListMethod } from './stdlib/list.js'
 import { getMapMethod } from './stdlib/map.js'
+import { getTextMethod } from './stdlib/text.js'
 
 export class RuntimeError extends Error {
   constructor(kind, message, hint, loc) {
@@ -655,6 +656,16 @@ export class Interpreter {
       )
       if (method) return method
       throw this.error('NameError', `Map has no method '${node.name}'.`, null, node.loc)
+    }
+
+    if (typeof obj === 'string') {
+      const method = getTextMethod(
+        obj, node.name,
+        (kind, msg, hint, loc) => this.error(kind, msg, hint, loc),
+        node.loc
+      )
+      if (method) return method
+      throw this.error('NameError', `Text has no method '${node.name}'.`, null, node.loc)
     }
 
     if (obj && obj._type === 'instance') {
