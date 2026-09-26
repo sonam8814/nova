@@ -83,3 +83,12 @@ export function novaClass(name, superclass, fields, methods) {
     methods,
   }
 }
+
+export function novaInstance(klass) {
+  return {
+    _type: 'instance',
+    className: klass.name,
+    klass,
+    fields: new Map(),
+  }
+}
