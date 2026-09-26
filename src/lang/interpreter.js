@@ -618,6 +618,9 @@ export class Interpreter {
       case 'is not':
         return !(left === right || (left === null && right === null))
 
+      case 'is a':
+        return this.evalIsA(left, right, node)
+
       default:
         throw this.error('RuntimeError', `Unknown operator '${node.operator}'.`, null, node.loc)
     }
@@ -675,6 +678,21 @@ export class Interpreter {
     if (typeof left === 'number' && typeof right === 'number') return fn(left, right)
     if (typeof left === 'string' && typeof right === 'string') return fn(left, right)
     throw this.error('TypeError', `Cannot compare ${typeName(left)} and ${typeName(right)} with '${opName}'.`, null, node.loc)
+  }
+
+  evalIsA(left, right, node) {
+    if (!right || right._type !== 'class') {
+      throw this.error('TypeError', `Right side of 'is a' must be a class.`, null, node.loc)
+    }
+    if (!left || left._type !== 'instance') {
+      return false
+    }
+    let klass = left.klass
+    while (klass) {
+      if (klass === right) return true
+      klass = klass.superclass
+    }
+    return false
   }
 
   evalUnary(node) {
