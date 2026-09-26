@@ -769,7 +769,13 @@ export class Interpreter {
 
     if (obj && obj._type === 'instance') {
       if (obj.fields.has(node.name)) return obj.fields.get(node.name)
-      throw this.error('NameError', `'${obj.className}' has no field '${node.name}'.`, null, node.loc)
+      const method = this.findMethod(obj.klass, node.name)
+      if (method) {
+        const boundEnv = new Environment(method.closure)
+        boundEnv.declare('my', obj, {})
+        return { ...method, closure: boundEnv }
+      }
+      throw this.error('NameError', `'${obj.className}' has no field or method '${node.name}'.`, null, node.loc)
     }
 
     throw this.error('TypeError', `Cannot access property '${node.name}' on ${typeName(obj)}.`, null, node.loc)
