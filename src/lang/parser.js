@@ -444,6 +444,9 @@ export class Parser {
     if (this.checkKeyword('keep')) {
       return this.foreverStatement()
     }
+    if (this.checkKeyword('describe')) {
+      return this.classDecl()
+    }
     if (this.checkKeyword('define')) {
       return this.funcDecl()
     }
@@ -734,6 +737,52 @@ export class Parser {
     this.consumeKeyword('done', "Expected 'done' to close 'define' block.")
 
     return AST.FuncDecl(name.value, params, returnType, body, {
+      line: start.line, column: start.column, start: start.start, end: this.previous().end,
+    })
+  }
+
+  classDecl() {
+    const start = this.advance() // consume 'describe'
+    const name = this.consume(TokenType.IDENT, "Expected class name after 'describe'.")
+
+    let superclass = null
+    if (this.matchKeyword('from')) {
+      const superToken = this.consume(TokenType.IDENT, "Expected superclass name after 'from'.")
+      superclass = superToken.value
+    }
+
+    const fields = []
+    const methods = []
+
+    while (!this.isAtEnd() && !this.checkKeyword('done')) {
+      if (this.checkKeyword('has')) {
+        const hasTok = this.advance() // consume 'has'
+        let typeHint = null
+        if (this.check(TokenType.TYPE)) {
+          typeHint = this.advance().value
+        }
+        const fieldName = this.consume(TokenType.IDENT, "Expected field name after 'has'.")
+        let defaultValue = null
+        if (this.matchKeyword('as')) {
+          defaultValue = this.parseExpression()
+        }
+        fields.push(AST.FieldDecl(fieldName.value, typeHint, defaultValue, {
+          line: hasTok.line, column: hasTok.column, start: hasTok.start, end: this.previous().end,
+        }))
+      } else if (this.checkKeyword('define')) {
+        methods.push(this.funcDecl())
+      } else {
+        this.error(
+          `Unexpected '${this.peek().lexeme}' inside class body.`,
+          this.peek(),
+          "A class body can only contain 'has' field declarations and 'define' method declarations."
+        )
+      }
+    }
+
+    this.consumeKeyword('done', "Expected 'done' to close 'describe' block.")
+
+    return AST.ClassDecl(name.value, superclass, fields, methods, {
       line: start.line, column: start.column, start: start.start, end: this.previous().end,
     })
   }
