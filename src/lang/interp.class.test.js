@@ -169,4 +169,187 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['<class Dog>'])
     })
   })
+
+  describe('inheritance', () => {
+    it('Animal/Dog example from the spec', () => {
+      const { output } = run(`
+        describe Animal
+          has name
+          has number age
+          has legs as 4
+
+          define setup with name, age
+            set my.name to name
+            set my.age to age
+          done
+
+          define speak
+            show "{my.name} makes a sound"
+          done
+
+          define describe_self
+            give back "{my.name}, age {my.age}"
+          done
+        done
+
+        describe Dog from Animal
+          define setup with name, age, breed
+            parent.setup(name, age)
+            set my.breed to breed
+          done
+
+          define speak
+            show "{my.name} barks"
+          done
+        done
+
+        remember d as new Dog("Rex", 3, "Lab")
+        d.speak()
+        show d.describe_self()
+        show d.legs
+      `)
+      expect(output).toEqual(['Rex barks', 'Rex, age 3', '4'])
+    })
+
+    it('child inherits methods from parent class', () => {
+      const { output } = run(`
+        describe Base
+          define greet
+            show "hello from Base"
+          done
+        done
+        describe Child from Base
+        done
+        remember c as new Child()
+        c.greet()
+      `)
+      expect(output).toEqual(['hello from Base'])
+    })
+
+    it('child overrides parent method', () => {
+      const { output } = run(`
+        describe Base
+          define speak
+            show "base"
+          done
+        done
+        describe Child from Base
+          define speak
+            show "child"
+          done
+        done
+        remember c as new Child()
+        c.speak()
+      `)
+      expect(output).toEqual(['child'])
+    })
+
+    it('parent.setup chains correctly', () => {
+      const { output } = run(`
+        describe A
+          has x
+          define setup with x
+            set my.x to x
+          done
+        done
+        describe B from A
+          has y
+          define setup with x, y
+            parent.setup(x)
+            set my.y to y
+          done
+        done
+        remember b as new B(10, 20)
+        show b.x
+        show b.y
+      `)
+      expect(output).toEqual(['10', '20'])
+    })
+
+    it('three-level inheritance with parent at each level', () => {
+      const { output } = run(`
+        describe A
+          define greet
+            show "A"
+          done
+        done
+        describe B from A
+          define greet
+            parent.greet()
+            show "B"
+          done
+        done
+        describe C from B
+          define greet
+            parent.greet()
+            show "C"
+          done
+        done
+        remember c as new C()
+        c.greet()
+      `)
+      expect(output).toEqual(['A', 'B', 'C'])
+    })
+
+    it('field defaults inherited from superclass', () => {
+      const { output } = run(`
+        describe Vehicle
+          has wheels as 4
+          has engine as "gas"
+        done
+        describe Truck from Vehicle
+          has payload as 1000
+        done
+        remember t as new Truck()
+        show t.wheels
+        show t.engine
+        show t.payload
+      `)
+      expect(output).toEqual(['4', 'gas', '1000'])
+    })
+
+    it('overridden method called from inherited method dispatches to override', () => {
+      const { output } = run(`
+        describe Base
+          define name
+            give back "base"
+          done
+          define greet
+            show "hello from {my.name()}"
+          done
+        done
+        describe Child from Base
+          define name
+            give back "child"
+          done
+        done
+        remember c as new Child()
+        c.greet()
+      `)
+      expect(output).toEqual(['hello from child'])
+    })
+
+    it('errors when inheriting from a non-class', () => {
+      const { error } = run(`
+        describe Bad from abs
+        done
+      `)
+      expect(error).toBeTruthy()
+      expect(error.message).toContain('not a class')
+    })
+
+    it('parent errors when class has no superclass', () => {
+      const { error } = run(`
+        describe Solo
+          define act
+            parent.act()
+          done
+        done
+        remember s as new Solo()
+        s.act()
+      `)
+      expect(error).toBeTruthy()
+      expect(error.message).toContain('no superclass')
+    })
+  })
 })
