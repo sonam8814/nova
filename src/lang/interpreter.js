@@ -551,6 +551,18 @@ export class Interpreter {
     return null
   }
 
+  collectMethods(klass) {
+    const names = new Set()
+    let current = klass
+    while (current) {
+      for (const name of current.methods.keys()) {
+        names.add(name)
+      }
+      current = current.superclass
+    }
+    return [...names].sort()
+  }
+
   callMethod(instance, method, args, loc) {
     const methodEnv = new Environment(method.closure)
     methodEnv.declare('my', instance, {})
@@ -822,7 +834,11 @@ export class Interpreter {
         boundEnv.declare('my', obj, {})
         return { ...method, closure: boundEnv }
       }
-      throw this.error('NameError', `'${obj.className}' has no field or method '${node.name}'.`, null, node.loc)
+      const available = this.collectMethods(obj.klass)
+      const hint = available.length > 0
+        ? `Available methods: ${available.join(', ')}`
+        : null
+      throw this.error('NameError', `'${obj.className}' has no field or method '${node.name}'.`, hint, node.loc)
     }
 
     throw this.error('TypeError', `Cannot access property '${node.name}' on ${typeName(obj)}.`, null, node.loc)
