@@ -1,5 +1,5 @@
 import { Environment } from './environment.js'
-import { typeName, toDisplay, isTruthy, novaFunction, novaClass } from './values.js'
+import { typeName, toDisplay, isTruthy, novaFunction, novaClass, novaInstance } from './values.js'
 import { MAX_STEPS, MAX_DEPTH } from './config.js'
 import { getListMethod } from './stdlib/list.js'
 import { getMapMethod } from './stdlib/map.js'
@@ -102,6 +102,7 @@ export class Interpreter {
       case 'Property': return this.evalProperty(node)
       case 'Call': return this.evalCall(node)
       case 'Action': return this.evalAction(node)
+      case 'New': return this.evalNew(node)
       case 'Interpolation': return this.evalInterpolation(node)
       default:
         throw this.error('RuntimeError', `Cannot evaluate '${node.type}' yet.`, null, node.loc)
@@ -490,6 +491,40 @@ export class Interpreter {
 
   evalAction(node) {
     return novaFunction(null, node.params, null, node.body, this.env)
+  }
+
+  evalNew(node) {
+    let klass
+    try {
+      klass = this.env.get(node.className)
+    } catch (e) {
+      if (e.kind) {
+        throw this.error(e.kind, e.message, e.hint, node.loc)
+      }
+      throw e
+    }
+
+    if (!klass || klass._type !== 'class') {
+      throw this.error('TypeError', `'${node.className}' is not a class.`, null, node.loc)
+    }
+
+    const instance = novaInstance(klass)
+    this.initFieldDefaults(instance, klass)
+
+    return instance
+  }
+
+  initFieldDefaults(instance, klass) {
+    if (klass.superclass) {
+      this.initFieldDefaults(instance, klass.superclass)
+    }
+    for (const field of klass.fields) {
+      if (field.defaultValue !== null) {
+        instance.fields.set(field.name, this.evaluate(field.defaultValue))
+      } else if (!instance.fields.has(field.name)) {
+        instance.fields.set(field.name, null)
+      }
+    }
   }
 
   // --- Expressions ---
