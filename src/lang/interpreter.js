@@ -190,8 +190,14 @@ export class Interpreter {
 
   execShow(node) {
     const values = node.expressions.map(e => this.evaluate(e))
-    const text = values.map(v => toDisplay(v)).join(' ')
+    const text = values.map(v => toDisplay(v, (inst) => this.callInstanceToText(inst))).join(' ')
     this.output(text)
+  }
+
+  callInstanceToText(instance) {
+    const method = this.findMethod(instance.klass, 'to_text')
+    if (!method) return undefined
+    return this.callMethod(instance, method, [], null)
   }
 
   execIf(node) {
@@ -851,7 +857,7 @@ export class Interpreter {
   evalInterpolation(node) {
     return node.parts.map(part => {
       const val = this.evaluate(part)
-      return toDisplay(val)
+      return toDisplay(val, (inst) => this.callInstanceToText(inst))
     }).join('')
   }
 

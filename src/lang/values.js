@@ -11,17 +11,18 @@ export function typeName(v) {
   return 'nothing'
 }
 
-export function toDisplay(v) {
+export function toDisplay(v, callToText) {
   if (v === null || v === undefined) return 'nothing'
   if (typeof v === 'number') return numberToDisplay(v)
   if (typeof v === 'string') return v
   if (typeof v === 'boolean') return v ? 'yes' : 'no'
-  if (v._type === 'list') return listToDisplay(v)
-  if (v._type === 'map') return mapToDisplay(v)
+  if (v._type === 'list') return listToDisplay(v, callToText)
+  if (v._type === 'map') return mapToDisplay(v, callToText)
   if (v._type === 'function') return `<action ${v.name || 'anonymous'}>`
   if (v._type === 'instance') {
-    if (v.methods && v.methods.has('to_text')) {
-      return v.methods.get('to_text')()
+    if (callToText) {
+      const result = callToText(v)
+      if (result !== undefined) return result
     }
     return `<${v.className}>`
   }
@@ -34,23 +35,23 @@ function numberToDisplay(n) {
   return String(n)
 }
 
-function listToDisplay(list) {
-  const items = list.elements.map(el => displayElement(el))
+function listToDisplay(list, callToText) {
+  const items = list.elements.map(el => displayElement(el, callToText))
   return `[${items.join(', ')}]`
 }
 
-function mapToDisplay(map) {
+function mapToDisplay(map, callToText) {
   const entries = []
   for (const [k, v] of map.entries) {
-    const key = typeof k === 'string' ? `"${k}"` : toDisplay(k)
-    entries.push(`${key}: ${displayElement(v)}`)
+    const key = typeof k === 'string' ? `"${k}"` : toDisplay(k, callToText)
+    entries.push(`${key}: ${displayElement(v, callToText)}`)
   }
   return `{${entries.join(', ')}}`
 }
 
-function displayElement(v) {
+function displayElement(v, callToText) {
   if (typeof v === 'string') return `"${v}"`
-  return toDisplay(v)
+  return toDisplay(v, callToText)
 }
 
 export function isTruthy(v) {
