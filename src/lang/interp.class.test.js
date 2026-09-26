@@ -438,4 +438,163 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(error.message).toContain("must be a class")
     })
   })
+
+  describe('edge cases', () => {
+    it('field defaults initialize from root to leaf', () => {
+      const { output } = run(`
+        describe A
+          has x as 1
+        done
+        describe B from A
+          has x as 2
+          has y as 10
+        done
+        remember b as new B()
+        show b.x
+        show b.y
+      `)
+      expect(output).toEqual(['2', '10'])
+    })
+
+    it('to_text method used by show', () => {
+      const { output } = run(`
+        describe Point
+          has x
+          has y
+          define setup with x, y
+            set my.x to x
+            set my.y to y
+          done
+          define to_text
+            give back "({my.x}, {my.y})"
+          done
+        done
+        remember p as new Point(3, 7)
+        show p
+      `)
+      expect(output).toEqual(['(3, 7)'])
+    })
+
+    it('to_text method used in interpolation', () => {
+      const { output } = run(`
+        describe Color
+          has name
+          define setup with name
+            set my.name to name
+          done
+          define to_text
+            give back my.name
+          done
+        done
+        remember c as new Color("red")
+        show "The color is {c}"
+      `)
+      expect(output).toEqual(['The color is red'])
+    })
+
+    it('instance without to_text displays class name', () => {
+      const { output } = run(`
+        describe Box
+        done
+        remember b as new Box()
+        show b
+      `)
+      expect(output).toEqual(['<Box>'])
+    })
+
+    it('missing method error lists available methods', () => {
+      const { error } = run(`
+        describe Dog
+          define speak
+            show "woof"
+          done
+          define fetch
+            show "fetching"
+          done
+        done
+        remember d as new Dog()
+        d.roll()
+      `)
+      expect(error).toBeTruthy()
+      expect(error.message).toContain("no field or method 'roll'")
+      expect(error.hint).toContain('fetch')
+      expect(error.hint).toContain('speak')
+    })
+
+    it('missing method error includes inherited methods', () => {
+      const { error } = run(`
+        describe Animal
+          define breathe
+            show "breathing"
+          done
+        done
+        describe Dog from Animal
+          define bark
+            show "woof"
+          done
+        done
+        remember d as new Dog()
+        d.fly()
+      `)
+      expect(error).toBeTruthy()
+      expect(error.hint).toContain('bark')
+      expect(error.hint).toContain('breathe')
+    })
+
+    it('multiple instances are independent', () => {
+      const { output } = run(`
+        describe Counter
+          has val as 0
+          define inc
+            set my.val to my.val + 1
+          done
+        done
+        remember a as new Counter()
+        remember b as new Counter()
+        a.inc()
+        a.inc()
+        b.inc()
+        show a.val
+        show b.val
+      `)
+      expect(output).toEqual(['2', '1'])
+    })
+
+    it('method can create and return new instances', () => {
+      const { output } = run(`
+        describe Pair
+          has first
+          has second
+          define setup with a, b
+            set my.first to a
+            set my.second to b
+          done
+          define swapped
+            give back new Pair(my.second, my.first)
+          done
+        done
+        remember p as new Pair(1, 2)
+        remember q as p.swapped()
+        show q.first
+        show q.second
+      `)
+      expect(output).toEqual(['2', '1'])
+    })
+
+    it('instance stored in a list', () => {
+      const { output } = run(`
+        describe Item
+          has name
+          define setup with name
+            set my.name to name
+          done
+        done
+        remember items as [new Item("a"), new Item("b"), new Item("c")]
+        for each item in items
+          show item.name
+        done
+      `)
+      expect(output).toEqual(['a', 'b', 'c'])
+    })
+  })
 })
