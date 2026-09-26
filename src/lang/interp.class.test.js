@@ -352,4 +352,90 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(error.message).toContain('no superclass')
     })
   })
+
+  describe('is a operator', () => {
+    it('instance is a its own class', () => {
+      const { output } = run(`
+        describe Dog
+        done
+        remember d as new Dog()
+        show d is a Dog
+      `)
+      expect(output).toEqual(['yes'])
+    })
+
+    it('instance is a its ancestor class', () => {
+      const { output } = run(`
+        describe Animal
+        done
+        describe Dog from Animal
+        done
+        remember d as new Dog()
+        show d is a Animal
+      `)
+      expect(output).toEqual(['yes'])
+    })
+
+    it('is a works through three levels', () => {
+      const { output } = run(`
+        describe A
+        done
+        describe B from A
+        done
+        describe C from B
+        done
+        remember c as new C()
+        show c is a C
+        show c is a B
+        show c is a A
+      `)
+      expect(output).toEqual(['yes', 'yes', 'yes'])
+    })
+
+    it('is a returns no for sibling classes', () => {
+      const { output } = run(`
+        describe Animal
+        done
+        describe Dog from Animal
+        done
+        describe Cat from Animal
+        done
+        remember d as new Dog()
+        show d is a Cat
+      `)
+      expect(output).toEqual(['no'])
+    })
+
+    it('is a returns no for unrelated classes', () => {
+      const { output } = run(`
+        describe Dog
+        done
+        describe Car
+        done
+        remember d as new Dog()
+        show d is a Car
+      `)
+      expect(output).toEqual(['no'])
+    })
+
+    it('is a returns no for non-instance values', () => {
+      const { output } = run(`
+        describe Dog
+        done
+        show 5 is a Dog
+        show "hello" is a Dog
+        show yes is a Dog
+      `)
+      expect(output).toEqual(['no', 'no', 'no'])
+    })
+
+    it('is a errors when right side is not a class', () => {
+      const { error } = run(`
+        remember d as 5
+        show d is a d
+      `)
+      expect(error).toBeTruthy()
+      expect(error.message).toContain("must be a class")
+    })
+  })
 })
