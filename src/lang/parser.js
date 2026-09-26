@@ -761,7 +761,7 @@ export class Parser {
         if (this.check(TokenType.TYPE)) {
           typeHint = this.advance().value
         }
-        const fieldName = this.consume(TokenType.IDENT, "Expected field name after 'has'.")
+        const fieldName = this.consumePropertyName()
         let defaultValue = null
         if (this.matchKeyword('as')) {
           defaultValue = this.parseExpression()
