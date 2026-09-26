@@ -1,5 +1,5 @@
 import { Environment } from './environment.js'
-import { typeName, toDisplay, isTruthy, novaFunction } from './values.js'
+import { typeName, toDisplay, isTruthy, novaFunction, novaClass } from './values.js'
 import { MAX_STEPS, MAX_DEPTH } from './config.js'
 import { getListMethod } from './stdlib/list.js'
 import { getMapMethod } from './stdlib/map.js'
@@ -76,6 +76,7 @@ export class Interpreter {
       case 'ForEach': return this.execForEach(node)
       case 'Forever': return this.execForever(node)
       case 'FuncDecl': return this.execFuncDecl(node)
+      case 'ClassDecl': return this.execClassDecl(node)
       case 'Return': return this.execReturn(node)
       case 'Skip': throw new ContinueSignal()
       case 'Stop': throw new BreakSignal()
@@ -371,11 +372,46 @@ export class Interpreter {
         const fn = novaFunction(stmt.name, stmt.params, stmt.returnType, stmt.body, this.env)
         this.env.declare(stmt.name, fn, {})
       }
+      if (stmt.type === 'ClassDecl') {
+        this.execClassDecl(stmt)
+      }
     }
   }
 
   execFuncDecl(_node) {
     // Already hoisted — nothing to do at execution time
+  }
+
+  execClassDecl(node) {
+    if (this.env.has(node.name) && this.env.values.has(node.name)) {
+      return
+    }
+
+    let superclass = null
+    if (node.superclass) {
+      try {
+        superclass = this.env.get(node.superclass)
+      } catch (e) {
+        if (e.kind) {
+          throw this.error(e.kind, e.message, e.hint, node.loc)
+        }
+        throw e
+      }
+      if (!superclass || superclass._type !== 'class') {
+        throw this.error('TypeError', `'${node.superclass}' is not a class.`, null, node.loc)
+      }
+    }
+
+    const methods = new Map()
+    const klass = novaClass(node.name, superclass, node.fields, methods)
+
+    for (const method of node.methods) {
+      const fn = novaFunction(method.name, method.params, method.returnType, method.body, this.env)
+      fn.declaringClass = klass
+      methods.set(method.name, fn)
+    }
+
+    this.env.declare(node.name, klass, {})
   }
 
   execReturn(node) {
