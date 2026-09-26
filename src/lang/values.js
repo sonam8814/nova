@@ -70,5 +70,16 @@ export function novaFunction(name, params, returnType, body, closure) {
     body,
     closure,
     boundThis: null,
+    declaringClass: null,
+  }
+}
+
+export function novaClass(name, superclass, fields, methods) {
+  return {
+    _type: 'class',
+    name,
+    superclass: superclass || null,
+    fields,
+    methods,
   }
 }
