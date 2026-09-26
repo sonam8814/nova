@@ -41,6 +41,7 @@ export class Interpreter {
     this.steps = 0
     this.callStack = []
     this.depth = 0
+    this.currentDeclaringClass = null
     registerGlobals(this.globals, (kind, msg, hint, loc) => this.error(kind, msg, hint, loc))
   }
 
@@ -169,7 +170,12 @@ export class Interpreter {
 
     if (target.type === 'Property') {
       if (target.object.type === 'Ident' && target.object.name === 'my') {
-        throw this.error('RuntimeError', "'my' is not available outside a method.", null, target.loc)
+        if (!this.env.has('my')) {
+          throw this.error('RuntimeError', "'my' is not available outside a method.", null, target.loc)
+        }
+        const instance = this.env.get('my')
+        instance.fields.set(target.name, value)
+        return
       }
       const obj = this.evaluate(target.object)
       if (obj && obj._type === 'instance') {
@@ -470,6 +476,12 @@ export class Interpreter {
 
     const prevEnv = this.env
     this.env = callEnv
+
+    const prevDeclaringClass = this.currentDeclaringClass
+    if (fn.declaringClass) {
+      this.currentDeclaringClass = fn.declaringClass
+    }
+
     let result = null
 
     try {
@@ -484,6 +496,7 @@ export class Interpreter {
       this.env = prevEnv
       this.depth--
       this.callStack.pop()
+      this.currentDeclaringClass = prevDeclaringClass
     }
 
     return result
@@ -536,8 +549,14 @@ export class Interpreter {
     const methodEnv = new Environment(method.closure)
     methodEnv.declare('my', instance, {})
 
+    const prevDeclaringClass = this.currentDeclaringClass
+    this.currentDeclaringClass = method.declaringClass
     const bound = { ...method, closure: methodEnv }
-    return this.callFunction(bound, args, loc)
+    try {
+      return this.callFunction(bound, args, loc)
+    } finally {
+      this.currentDeclaringClass = prevDeclaringClass
+    }
   }
 
   initFieldDefaults(instance, klass) {
@@ -734,6 +753,10 @@ export class Interpreter {
   }
 
   evalProperty(node) {
+    if (node.object.type === 'Ident' && node.object.name === 'parent') {
+      return this.evalParentProperty(node)
+    }
+
     const obj = this.evaluate(node.object)
 
     if (obj && obj._type === 'list') {
@@ -779,6 +802,32 @@ export class Interpreter {
     }
 
     throw this.error('TypeError', `Cannot access property '${node.name}' on ${typeName(obj)}.`, null, node.loc)
+  }
+
+  evalParentProperty(node) {
+    if (!this.currentDeclaringClass) {
+      throw this.error('RuntimeError', "'parent' can only be used inside a method.", null, node.loc)
+    }
+    const superclass = this.currentDeclaringClass.superclass
+    if (!superclass) {
+      throw this.error('RuntimeError', `'${this.currentDeclaringClass.name}' has no superclass.`, null, node.loc)
+    }
+
+    const method = this.findMethod(superclass, node.name)
+    if (!method) {
+      throw this.error('NameError', `Superclass '${superclass.name}' has no method '${node.name}'.`, null, node.loc)
+    }
+
+    let instance
+    try {
+      instance = this.env.get('my')
+    } catch (e) {
+      throw this.error('RuntimeError', "'parent' can only be used inside a method.", null, node.loc)
+    }
+
+    const boundEnv = new Environment(method.closure)
+    boundEnv.declare('my', instance, {})
+    return { ...method, closure: boundEnv }
   }
 
   evalInterpolation(node) {
