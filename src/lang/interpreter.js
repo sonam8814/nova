@@ -511,7 +511,33 @@ export class Interpreter {
     const instance = novaInstance(klass)
     this.initFieldDefaults(instance, klass)
 
+    const setup = this.findMethod(klass, 'setup')
+    if (setup) {
+      const args = node.args.map(a => this.evaluate(a))
+      this.callMethod(instance, setup, args, node.loc)
+    } else if (node.args.length > 0) {
+      throw this.error('TypeError', `'${node.className}' has no 'setup' method but received ${node.args.length} argument(s).`, null, node.loc)
+    }
+
     return instance
+  }
+
+  findMethod(klass, name) {
+    if (klass.methods.has(name)) {
+      return klass.methods.get(name)
+    }
+    if (klass.superclass) {
+      return this.findMethod(klass.superclass, name)
+    }
+    return null
+  }
+
+  callMethod(instance, method, args, loc) {
+    const methodEnv = new Environment(method.closure)
+    methodEnv.declare('my', instance, {})
+
+    const bound = { ...method, closure: methodEnv }
+    return this.callFunction(bound, args, loc)
   }
 
   initFieldDefaults(instance, klass) {
