@@ -119,3 +119,11 @@ export function Stop(loc) {
 export function ExprStmt(expression, loc) {
   return node('ExprStmt', { expression }, loc)
 }
+
+export function ClassDecl(name, superclass, fields, methods, loc) {
+  return node('ClassDecl', { name, superclass, fields, methods }, loc)
+}
+
+export function FieldDecl(name, typeHint, defaultValue, loc) {
+  return node('FieldDecl', { name, typeHint, defaultValue }, loc)
+}
