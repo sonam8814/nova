@@ -127,3 +127,11 @@ export function ClassDecl(name, superclass, fields, methods, loc) {
 export function FieldDecl(name, typeHint, defaultValue, loc) {
   return node('FieldDecl', { name, typeHint, defaultValue }, loc)
 }
+
+export function Attempt(body, rescueName, rescueBody, alwaysBody, loc) {
+  return node('Attempt', { body, rescueName, rescueBody, alwaysBody }, loc)
+}
+
+export function Raise(expression, loc) {
+  return node('Raise', { expression }, loc)
+}
