@@ -462,6 +462,9 @@ export class Parser {
     if (this.checkKeyword('raise')) {
       return this.raiseStatement()
     }
+    if (this.checkKeyword('attempt')) {
+      return this.attemptStatement()
+    }
     return this.exprStatement()
   }
 
@@ -837,6 +840,27 @@ export class Parser {
     const expression = this.parseExpression()
     return AST.Raise(expression, {
       line: start.line, column: start.column, start: start.start, end: expression.loc.end,
+    })
+  }
+
+  // --- Attempt / Rescue / Always ---
+
+  attemptStatement() {
+    const start = this.advance() // consume 'attempt'
+    const body = this.block()
+
+    this.consumeKeyword('rescue', "Expected 'rescue' after 'attempt' block.", "Use 'attempt ... rescue e ... done'.")
+    const rescueName = this.consume(TokenType.IDENT, "Expected error variable name after 'rescue'.", "Use 'rescue e' to bind the error to a variable.")
+    const rescueBody = this.block()
+
+    let alwaysBody = null
+    if (this.matchKeyword('always')) {
+      alwaysBody = this.block()
+    }
+
+    this.consumeKeyword('done', "Expected 'done' to close 'attempt' block.")
+    return AST.Attempt(body, rescueName.value, rescueBody, alwaysBody, {
+      line: start.line, column: start.column, start: start.start, end: this.previous().end,
     })
   }
 
