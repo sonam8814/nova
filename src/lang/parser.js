@@ -459,6 +459,9 @@ export class Parser {
     if (this.checkKeyword('stop')) {
       return this.stopStatement()
     }
+    if (this.checkKeyword('raise')) {
+      return this.raiseStatement()
+    }
     return this.exprStatement()
   }
 
@@ -825,6 +828,16 @@ export class Parser {
       this.error("'stop' can only be used inside a loop.", tok, "Move this inside a 'while', 'repeat', 'count', 'for each', or 'keep going' block.")
     }
     return AST.Stop(this.locOfToken(tok))
+  }
+
+  // --- Raise ---
+
+  raiseStatement() {
+    const start = this.advance() // consume 'raise'
+    const expression = this.parseExpression()
+    return AST.Raise(expression, {
+      line: start.line, column: start.column, start: start.start, end: expression.loc.end,
+    })
   }
 
   // --- Expression statement ---
