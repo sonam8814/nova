@@ -10,6 +10,19 @@ export function novaError(kind, message, { hint = null, file = null, line = null
   }
 }
 
+export class NovaThrow extends Error {
+  constructor(errorData) {
+    super(errorData.message)
+    this.name = 'NovaThrow'
+    this.errorData = errorData
+    this.kind = errorData.kind
+    this.hint = errorData.hint
+    this.line = errorData.line
+    this.column = errorData.column
+    this.file = errorData.file
+  }
+}
+
 export function formatError(sourcesByFile, error) {
   const lines = []
 

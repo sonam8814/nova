@@ -5,17 +5,9 @@ import { getListMethod } from './stdlib/list.js'
 import { getMapMethod } from './stdlib/map.js'
 import { getTextMethod } from './stdlib/text.js'
 import { registerGlobals } from './stdlib/globals.js'
+import { novaError, NovaThrow } from './errors.js'
 
-export class RuntimeError extends Error {
-  constructor(kind, message, hint, loc) {
-    super(message)
-    this.name = 'RuntimeError'
-    this.kind = kind
-    this.hint = hint || null
-    this.line = loc ? loc.line : null
-    this.column = loc ? loc.column : null
-  }
-}
+export { NovaThrow as RuntimeError }
 
 export class BreakSignal {
   constructor() { this._signal = 'break' }
@@ -79,6 +71,8 @@ export class Interpreter {
       case 'FuncDecl': return this.execFuncDecl(node)
       case 'ClassDecl': return this.execClassDecl(node)
       case 'Return': return this.execReturn(node)
+      case 'Raise': return this.execRaise(node)
+      case 'Attempt': return this.execAttempt(node)
       case 'Skip': throw new ContinueSignal()
       case 'Stop': throw new BreakSignal()
       case 'ExprStmt': return this.evaluate(node.expression)
@@ -430,6 +424,75 @@ export class Interpreter {
   execReturn(node) {
     const value = node.value ? this.evaluate(node.value) : null
     throw new ReturnSignal(value)
+  }
+
+  execRaise(node) {
+    const value = this.evaluate(node.expression)
+    if (typeof value === 'string') {
+      throw new NovaThrow(novaError('UserError', value, {
+        file: this.fileName,
+        line: node.loc.line,
+        column: node.loc.column,
+        stack: [...this.callStack],
+      }))
+    }
+    if (value && value._type === 'map') {
+      const message = value.entries.get('message') || 'An error occurred'
+      const kind = value.entries.get('kind') || 'UserError'
+      throw new NovaThrow(novaError(kind, message, {
+        hint: value.entries.get('hint') || null,
+        file: this.fileName,
+        line: node.loc.line,
+        column: node.loc.column,
+        stack: [...this.callStack],
+      }))
+    }
+    throw new NovaThrow(novaError('UserError', toDisplay(value), {
+      file: this.fileName,
+      line: node.loc.line,
+      column: node.loc.column,
+      stack: [...this.callStack],
+    }))
+  }
+
+  execAttempt(node) {
+    let returnSignal = null
+    try {
+      this.executeBlock(node.body)
+    } catch (e) {
+      if (e instanceof NovaThrow) {
+        const errData = e.errorData
+        const errorMap = {
+          _type: 'map',
+          entries: new Map([
+            ['message', errData.message],
+            ['kind', errData.kind],
+            ['line', errData.line],
+            ['column', errData.column],
+          ]),
+        }
+        const rescueEnv = new Environment(this.env)
+        rescueEnv.declare(node.rescueName, errorMap, {})
+        const prevEnv = this.env
+        this.env = rescueEnv
+        try {
+          this.executeBlock(node.rescueBody)
+        } finally {
+          this.env = prevEnv
+        }
+      } else if (e instanceof ReturnSignal) {
+        returnSignal = e
+      } else {
+        throw e
+      }
+    } finally {
+      if (node.alwaysBody) {
+        this.executeBlock(node.alwaysBody)
+      }
+    }
+    if (returnSignal) {
+      throw returnSignal
+    }
   }
 
   evalCall(node) {
@@ -880,6 +943,12 @@ export class Interpreter {
   // --- Error helper ---
 
   error(kind, message, hint, loc) {
-    return new RuntimeError(kind, message, hint, loc)
+    return new NovaThrow(novaError(kind, message, {
+      hint,
+      file: this.fileName,
+      line: loc ? loc.line : null,
+      column: loc ? loc.column : null,
+      stack: [...this.callStack],
+    }))
   }
 }
