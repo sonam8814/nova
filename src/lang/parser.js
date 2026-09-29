@@ -477,6 +477,11 @@ export class Parser {
     let typeHint = null
     if (this.check(TokenType.TYPE)) {
       typeHint = this.advance().value
+    } else if (this.check(TokenType.IDENT)) {
+      const next = this.tokens[this.current + 1]
+      if (next && next.type === TokenType.IDENT) {
+        typeHint = this.advance().value
+      }
     }
 
     if (!this.check(TokenType.IDENT)) {

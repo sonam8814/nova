@@ -108,6 +108,9 @@ export class Interpreter {
 
   execDeclare(node) {
     const value = this.evaluate(node.value)
+    if (node.typeHint) {
+      this.checkType(value, node.typeHint, node.name, node.loc)
+    }
     try {
       this.env.declare(node.name, value, {
         constant: node.isConstant,
@@ -168,11 +171,19 @@ export class Interpreter {
           throw this.error('RuntimeError', "'my' is not available outside a method.", null, target.loc)
         }
         const instance = this.env.get('my')
+        const fieldType = this.findFieldType(instance.klass, target.name)
+        if (fieldType) {
+          this.checkType(value, fieldType, target.name, target.loc)
+        }
         instance.fields.set(target.name, value)
         return
       }
       const obj = this.evaluate(target.object)
       if (obj && obj._type === 'instance') {
+        const fieldType = this.findFieldType(obj.klass, target.name)
+        if (fieldType) {
+          this.checkType(value, fieldType, target.name, target.loc)
+        }
         obj.fields.set(target.name, value)
         return
       }
@@ -537,6 +548,9 @@ export class Interpreter {
     for (let i = 0; i < fn.params.length; i++) {
       const param = fn.params[i]
       const value = i < args.length ? args[i] : this.evaluate(param.default)
+      if (param.type) {
+        this.checkType(value, param.type, param.name, loc)
+      }
       callEnv.declare(param.name, value, {})
     }
 
@@ -566,6 +580,10 @@ export class Interpreter {
       this.depth--
       this.callStack.pop()
       this.currentDeclaringClass = prevDeclaringClass
+    }
+
+    if (fn.returnType) {
+      this.checkType(result, fn.returnType, fn.name || 'return value', loc)
     }
 
     return result
@@ -638,6 +656,19 @@ export class Interpreter {
     } finally {
       this.currentDeclaringClass = prevDeclaringClass
     }
+  }
+
+  findFieldType(klass, fieldName) {
+    let current = klass
+    while (current) {
+      for (const field of current.fields) {
+        if (field.name === fieldName && field.typeHint) {
+          return field.typeHint
+        }
+      }
+      current = current.superclass
+    }
+    return null
   }
 
   initFieldDefaults(instance, klass) {
@@ -938,6 +969,55 @@ export class Interpreter {
       const val = this.evaluate(part)
       return toDisplay(val, (inst) => this.callInstanceToText(inst))
     }).join('')
+  }
+
+  // --- Type checking ---
+
+  checkType(value, declaredType, name, loc) {
+    if (!declaredType || declaredType === 'anything') return
+
+    const actual = typeName(value)
+
+    switch (declaredType) {
+      case 'number':
+        if (typeof value === 'number') return
+        break
+      case 'text':
+        if (typeof value === 'string') return
+        break
+      case 'truth':
+        if (typeof value === 'boolean') return
+        break
+      case 'list':
+        if (value && value._type === 'list') return
+        break
+      case 'map':
+        if (value && value._type === 'map') return
+        break
+      case 'action':
+        if (value && value._type === 'function') return
+        break
+      case 'nothing':
+        if (value === null || value === undefined) return
+        break
+      default:
+        if (value && value._type === 'instance') {
+          let klass = value.klass
+          while (klass) {
+            if (klass.name === declaredType) return
+            klass = klass.superclass
+          }
+        }
+        if (value && value._type === 'class' && value.name === declaredType) return
+        break
+    }
+
+    throw this.error(
+      'TypeError',
+      `Expected ${declaredType} for '${name}', got ${actual}.`,
+      null,
+      loc
+    )
   }
 
   // --- Error helper ---
