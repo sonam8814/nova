@@ -89,8 +89,16 @@ export class Resolver {
 
   resolveBlock(stmts) {
     this.hoistDeclarations(stmts)
+    let unreachable = false
     for (const stmt of stmts) {
+      if (unreachable) {
+        this.report(stmt.loc, 'Unreachable code after this point.', 'This code will never execute because of a previous give back or stop.')
+        break
+      }
       this.resolveStmt(stmt)
+      if (stmt.type === 'Return' || stmt.type === 'Stop') {
+        unreachable = true
+      }
     }
   }
 
@@ -151,6 +159,9 @@ export class Resolver {
     }
     if (target.type === 'Property') {
       if (target.object.type === 'Ident' && target.object.name === 'my') {
+        if (this.classDepth === 0) {
+          this.report(target.object.loc, "'my' can only be used inside a class method.", "Move this inside a 'describe' block's method.")
+        }
         return
       }
       this.resolveExpr(target.object)
@@ -276,6 +287,9 @@ export class Resolver {
   }
 
   resolveReturn(node) {
+    if (this.functionDepth === 0) {
+      this.report(node.loc, "'give back' can only be used inside a function.", "Move this inside a 'define' block or an 'action'.")
+    }
     if (node.value) {
       this.resolveExpr(node.value)
     }
@@ -355,6 +369,9 @@ export class Resolver {
 
       case 'Property':
         if (node.object.type === 'Ident' && node.object.name === 'parent') {
+          if (this.classDepth === 0) {
+            this.report(node.object.loc, "'parent' can only be used inside a class method.", "Move this inside a 'describe' block's method.")
+          }
           return
         }
         this.resolveExpr(node.object)
@@ -400,7 +417,18 @@ export class Resolver {
   }
 
   resolveNameUse(name, loc) {
-    if (name === 'my' || name === 'parent') return
+    if (name === 'my') {
+      if (this.classDepth === 0) {
+        this.report(loc, "'my' can only be used inside a class method.", "Move this inside a 'describe' block's method.")
+      }
+      return
+    }
+    if (name === 'parent') {
+      if (this.classDepth === 0) {
+        this.report(loc, "'parent' can only be used inside a class method.", "Move this inside a 'describe' block's method.")
+      }
+      return
+    }
     if (this.isDeclared(name)) return
     if (TYPE_NAMES.has(name)) return
 
