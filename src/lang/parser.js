@@ -482,6 +482,11 @@ export class Parser {
       if (next && next.type === TokenType.IDENT) {
         typeHint = this.advance().value
       }
+    } else if (this.checkKeyword('action') || this.checkKeyword('nothing')) {
+      const next = this.tokens[this.current + 1]
+      if (next && next.type === TokenType.IDENT) {
+        typeHint = this.advance().value
+      }
     }
 
     if (!this.check(TokenType.IDENT)) {
