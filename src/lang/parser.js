@@ -465,6 +465,15 @@ export class Parser {
     if (this.checkKeyword('attempt')) {
       return this.attemptStatement()
     }
+    if (this.checkKeyword('use')) {
+      return this.useStatement()
+    }
+    if (this.checkKeyword('save')) {
+      return this.saveStatement()
+    }
+    if (this.checkKeyword('delete')) {
+      return this.deleteFileStatement()
+    }
     return this.exprStatement()
   }
 
@@ -872,6 +881,48 @@ export class Parser {
     return AST.Attempt(body, rescueName.value, rescueBody, alwaysBody, {
       line: start.line, column: start.column, start: start.start, end: this.previous().end,
     })
+  }
+
+  // --- Use / Save / Delete file ---
+
+  useStatement() {
+    const start = this.advance() // consume 'use'
+    const path = this.consume(TokenType.TEXT, "Expected a text path after 'use'.", "Use 'use \"helpers\"' or 'use \"utils\" as u'.")
+
+    let alias = null
+    if (this.matchKeyword('as')) {
+      const name = this.consume(TokenType.IDENT, "Expected a name after 'as'.")
+      alias = name.value
+    }
+
+    return AST.Use(path.value, alias, {
+      line: start.line, column: start.column, start: start.start, end: this.previous().end,
+    })
+  }
+
+  saveStatement() {
+    const start = this.advance() // consume 'save'
+    const value = this.parseExpression()
+    this.consumeKeyword('to', "Expected 'to' after value in save statement.", "Use 'save \"content\" to \"file.txt\"'.")
+    const path = this.parseExpression()
+    return AST.ExprStmt(
+      AST.Call(AST.Ident('__save__', start), [value, path], {
+        line: start.line, column: start.column, start: start.start, end: path.loc.end,
+      }),
+      { line: start.line, column: start.column, start: start.start, end: path.loc.end }
+    )
+  }
+
+  deleteFileStatement() {
+    const start = this.advance() // consume 'delete'
+    this.consumeKeyword('file', "Expected 'file' after 'delete'.", "Use 'delete file \"data.txt\"'.")
+    const path = this.parseExpression()
+    return AST.ExprStmt(
+      AST.Call(AST.Ident('__delete_file__', start), [path], {
+        line: start.line, column: start.column, start: start.start, end: path.loc.end,
+      }),
+      { line: start.line, column: start.column, start: start.start, end: path.loc.end }
+    )
   }
 
   // --- Expression statement ---

@@ -135,3 +135,7 @@ export function Attempt(body, rescueName, rescueBody, alwaysBody, loc) {
 export function Raise(expression, loc) {
   return node('Raise', { expression }, loc)
 }
+
+export function Use(path, alias, loc) {
+  return node('Use', { path, alias }, loc)
+}

@@ -34,6 +34,7 @@ export class Interpreter {
     this.callStack = []
     this.depth = 0
     this.currentDeclaringClass = null
+    this.moduleLoader = null
     registerGlobals(this.globals, (kind, msg, hint, loc) => this.error(kind, msg, hint, loc))
   }
 
@@ -73,6 +74,7 @@ export class Interpreter {
       case 'Return': return this.execReturn(node)
       case 'Raise': return this.execRaise(node)
       case 'Attempt': return this.execAttempt(node)
+      case 'Use': return this.execUse(node)
       case 'Skip': throw new ContinueSignal()
       case 'Stop': throw new BreakSignal()
       case 'ExprStmt': return this.evaluate(node.expression)
@@ -506,6 +508,29 @@ export class Interpreter {
     }
   }
 
+  execUse(node) {
+    if (!this.moduleLoader) {
+      throw this.error('FileError', "Cannot use modules without a module loader.", 'This program needs to be run through the module loader for multi-file support.', node.loc)
+    }
+
+    const moduleEnv = this.moduleLoader.load(node.path, this.fileName)
+
+    if (node.alias) {
+      const namespace = {
+        _type: 'namespace',
+        name: node.alias,
+        env: moduleEnv,
+      }
+      this.env.declare(node.alias, namespace, {})
+    } else {
+      for (const [name, value] of moduleEnv.values) {
+        if (!name.startsWith('__') && !this.env.values.has(name)) {
+          this.env.declare(name, value, {})
+        }
+      }
+    }
+  }
+
   evalCall(node) {
     const callee = this.evaluate(node.callee)
     const args = node.args.map(a => this.evaluate(a))
@@ -826,6 +851,12 @@ export class Interpreter {
         if (operand && operand._type === 'map') return operand.entries.size
         throw this.error('TypeError', `Cannot get size of ${typeName(operand)}.`, "'size of' works on text, list, and map.", node.loc)
 
+      case 'read':
+        if (typeof operand !== 'string') {
+          throw this.error('TypeError', `read expects a text path, got ${typeName(operand)}.`, null, node.loc)
+        }
+        return this.readFile(operand, node.loc)
+
       default:
         throw this.error('RuntimeError', `Unknown unary operator '${node.operator}'.`, null, node.loc)
     }
@@ -920,6 +951,13 @@ export class Interpreter {
       throw this.error('NameError', `Text has no method '${node.name}'.`, null, node.loc)
     }
 
+    if (obj && obj._type === 'namespace') {
+      if (obj.env.values.has(node.name)) {
+        return obj.env.values.get(node.name)
+      }
+      throw this.error('NameError', `Module '${obj.name}' has no export '${node.name}'.`, null, node.loc)
+    }
+
     if (obj && obj._type === 'instance') {
       if (obj.fields.has(node.name)) return obj.fields.get(node.name)
       const method = this.findMethod(obj.klass, node.name)
@@ -969,6 +1007,19 @@ export class Interpreter {
       const val = this.evaluate(part)
       return toDisplay(val, (inst) => this.callInstanceToText(inst))
     }).join('')
+  }
+
+  // --- File operations ---
+
+  readFile(path, loc) {
+    if (!this.moduleLoader || !this.moduleLoader.fileSystem) {
+      throw this.error('FileError', "File operations require a file system.", null, loc)
+    }
+    const content = this.moduleLoader.fileSystem.read(path)
+    if (content === undefined || content === null) {
+      throw this.error('FileError', `File '${path}' not found.`, null, loc)
+    }
+    return content
   }
 
   // --- Type checking ---

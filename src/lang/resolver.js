@@ -7,6 +7,7 @@ const GLOBAL_NAMES = new Set([
   'abs', 'min', 'max', 'floor', 'ceil', 'round',
   'sqrt', 'power', 'random', 'random_between',
   'range', 'sleep', 'time_now',
+  '__save__', '__delete_file__',
 ])
 
 export class Resolver {
@@ -17,6 +18,7 @@ export class Resolver {
     this.functionDepth = 0
     this.classDepth = 0
     this.loopDepth = 0
+    this.hasWildcardImport = false
 
     this.pushScope()
     for (const name of GLOBAL_NAMES) {
@@ -131,6 +133,7 @@ export class Resolver {
       case 'Return': return this.resolveReturn(stmt)
       case 'Raise': return this.resolveRaise(stmt)
       case 'Attempt': return this.resolveAttempt(stmt)
+      case 'Use': return this.resolveUse(stmt)
       case 'ExprStmt': return this.resolveExpr(stmt.expression)
       case 'Skip':
       case 'Stop':
@@ -299,6 +302,14 @@ export class Resolver {
     this.resolveExpr(node.expression)
   }
 
+  resolveUse(node) {
+    if (node.alias) {
+      this.declare(node.alias, node.loc)
+    } else {
+      this.hasWildcardImport = true
+    }
+  }
+
   resolveAttempt(node) {
     this.pushScope()
     this.resolveBlock(node.body)
@@ -431,6 +442,7 @@ export class Resolver {
     }
     if (this.isDeclared(name)) return
     if (TYPE_NAMES.has(name)) return
+    if (this.hasWildcardImport) return
 
     const suggestion = this.suggest(name)
     const hint = suggestion ? `Did you mean '${suggestion}'?` : null

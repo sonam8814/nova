@@ -2,8 +2,9 @@ import { Lexer } from './lexer.js'
 import { Parser } from './parser.js'
 import { Resolver } from './resolver.js'
 import { Interpreter } from './interpreter.js'
+import { ModuleLoader } from './modules.js'
 
-export function run(source, { input = [], files = {} } = {}) {
+export function run(source, { input = [], files = {}, fileSystem } = {}) {
   const output = []
   let error = null
 
@@ -22,6 +23,14 @@ export function run(source, { input = [], files = {} } = {}) {
       output: (text) => output.push(text),
       fileName: 'test.nova',
     })
+
+    const allSources = { 'test.nova': source, ...files }
+    const loader = new ModuleLoader(allSources, {
+      output: (text) => output.push(text),
+      fileSystem: fileSystem || null,
+    })
+    interp.moduleLoader = loader
+
     interp.run(program)
   } catch (e) {
     error = e

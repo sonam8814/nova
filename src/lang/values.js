@@ -8,6 +8,7 @@ export function typeName(v) {
   if (v._type === 'function') return 'action'
   if (v._type === 'instance') return v.className
   if (v._type === 'class') return 'class'
+  if (v._type === 'namespace') return 'namespace'
   return 'nothing'
 }
 
@@ -27,6 +28,7 @@ export function toDisplay(v, callToText) {
     return `<${v.className}>`
   }
   if (v._type === 'class') return `<class ${v.name}>`
+  if (v._type === 'namespace') return `<module ${v.name}>`
   return String(v)
 }
 
