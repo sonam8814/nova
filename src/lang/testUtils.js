@@ -31,10 +31,34 @@ export function run(source, { input = [], files = {}, fileSystem } = {}) {
     })
     interp.moduleLoader = loader
 
+    if (fileSystem) {
+      loader.registerFileSystemGlobals(interp)
+    }
+
     interp.run(program)
   } catch (e) {
     error = e
   }
 
   return { output, error }
+}
+
+export function createMemoryFS(initial = {}) {
+  const store = new Map(Object.entries(initial))
+  return {
+    read(path) {
+      if (!store.has(path)) return null
+      return store.get(path)
+    },
+    write(path, content) {
+      store.set(path, content)
+    },
+    remove(path) {
+      store.delete(path)
+    },
+    list() {
+      return [...store.keys()].sort()
+    },
+    _store: store,
+  }
 }

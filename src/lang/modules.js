@@ -78,7 +78,7 @@ export class ModuleLoader {
 
   registerFileSystemGlobals(interp) {
     const fs = this.fileSystem
-    const makeError = (kind, msg, hint, loc) => {
+    const makeError = (kind, msg, hint) => {
       return new NovaThrow(novaError(kind, msg, { hint, file: interp.fileName }))
     }
 
@@ -108,6 +108,18 @@ export class ModuleLoader {
         }
         fs.remove(path)
         return null
+      },
+    }, {})
+
+    interp.globals.declare('files', {
+      _type: 'function',
+      name: 'files',
+      _native(args) {
+        if (args.length !== 0) {
+          throw makeError('TypeError', `'files' expects 0 arguments, got ${args.length}.`, null)
+        }
+        const list = fs.list()
+        return { _type: 'list', elements: list }
       },
     }, {})
   }
