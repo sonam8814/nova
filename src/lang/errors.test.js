@@ -2,30 +2,30 @@ import { describe, it, expect } from 'vitest'
 import { run } from './testUtils.js'
 import { formatError, novaError } from './errors.js'
 
-describe('Phase 10 — Errors', () => {
-  describe('raise', () => {
-    it('raise with text creates a UserError', () => {
-      const { error } = run('raise "something went wrong"')
+describe('Phase 10 — Errors', async () => {
+  describe('raise', async () => {
+    it('raise with text creates a UserError', async () => {
+      const { error } = await run('raise "something went wrong"')
       expect(error.kind).toBe('UserError')
       expect(error.message).toBe('something went wrong')
     })
 
-    it('raise with expression converts to text', () => {
-      const { error } = run('raise 42')
+    it('raise with expression converts to text', async () => {
+      const { error } = await run('raise 42')
       expect(error.kind).toBe('UserError')
       expect(error.message).toBe('42')
     })
 
-    it('raise with a map uses kind and message fields', () => {
-      const { error } = run('raise {"kind": "CustomError", "message": "bad input", "hint": "try again"}')
+    it('raise with a map uses kind and message fields', async () => {
+      const { error } = await run('raise {"kind": "CustomError", "message": "bad input", "hint": "try again"}')
       expect(error.kind).toBe('CustomError')
       expect(error.message).toBe('bad input')
     })
   })
 
-  describe('attempt / rescue', () => {
-    it('caught raise binds e.message', () => {
-      const { output } = run(`
+  describe('attempt / rescue', async () => {
+    it('caught raise binds e.message', async () => {
+      const { output } = await run(`
         attempt
           raise "oops"
         rescue e
@@ -35,8 +35,8 @@ describe('Phase 10 — Errors', () => {
       expect(output).toEqual(['oops'])
     })
 
-    it('caught raise binds e.kind', () => {
-      const { output } = run(`
+    it('caught raise binds e.kind', async () => {
+      const { output } = await run(`
         attempt
           raise "bad"
         rescue e
@@ -46,8 +46,8 @@ describe('Phase 10 — Errors', () => {
       expect(output).toEqual(['UserError'])
     })
 
-    it('rescue catches internal errors too', () => {
-      const { output } = run(`
+    it('rescue catches internal errors too', async () => {
+      const { output } = await run(`
         attempt
           remember x as 10 / 0
         rescue e
@@ -59,8 +59,8 @@ describe('Phase 10 — Errors', () => {
       expect(output[1]).toContain('divide by zero')
     })
 
-    it('execution continues after rescued error', () => {
-      const { output } = run(`
+    it('execution continues after rescued error', async () => {
+      const { output } = await run(`
         attempt
           raise "fail"
         rescue e
@@ -71,8 +71,8 @@ describe('Phase 10 — Errors', () => {
       expect(output).toEqual(['caught', 'after'])
     })
 
-    it('unrescued error propagates', () => {
-      const { error } = run(`
+    it('unrescued error propagates', async () => {
+      const { error } = await run(`
         attempt
           raise "inner"
         rescue e
@@ -84,9 +84,9 @@ describe('Phase 10 — Errors', () => {
     })
   })
 
-  describe('always', () => {
-    it('always runs after normal execution', () => {
-      const { output } = run(`
+  describe('always', async () => {
+    it('always runs after normal execution', async () => {
+      const { output } = await run(`
         attempt
           show "body"
         rescue e
@@ -98,8 +98,8 @@ describe('Phase 10 — Errors', () => {
       expect(output).toEqual(['body', 'always'])
     })
 
-    it('always runs after an error', () => {
-      const { output } = run(`
+    it('always runs after an error', async () => {
+      const { output } = await run(`
         attempt
           raise "fail"
         rescue e
@@ -111,8 +111,8 @@ describe('Phase 10 — Errors', () => {
       expect(output).toEqual(['rescued', 'cleanup'])
     })
 
-    it('always runs after give back inside attempt', () => {
-      const { output } = run(`
+    it('always runs after give back inside attempt', async () => {
+      const { output } = await run(`
         define test
           attempt
             show "before"
@@ -129,8 +129,8 @@ describe('Phase 10 — Errors', () => {
       expect(output).toEqual(['before', 'always ran', '42'])
     })
 
-    it('always runs even when rescue rethrows', () => {
-      const { output, error } = run(`
+    it('always runs even when rescue rethrows', async () => {
+      const { output, error } = await run(`
         attempt
           raise "original"
         rescue e
@@ -145,9 +145,9 @@ describe('Phase 10 — Errors', () => {
     })
   })
 
-  describe('nested attempt blocks', () => {
-    it('inner attempt catches, outer does not fire', () => {
-      const { output } = run(`
+  describe('nested attempt blocks', async () => {
+    it('inner attempt catches, outer does not fire', async () => {
+      const { output } = await run(`
         attempt
           attempt
             raise "inner"
@@ -162,8 +162,8 @@ describe('Phase 10 — Errors', () => {
       expect(output).toEqual(['inner caught', 'outer continues'])
     })
 
-    it('inner unhandled error caught by outer', () => {
-      const { output, error } = run(`
+    it('inner unhandled error caught by outer', async () => {
+      const { output, error } = await run(`
         attempt
           attempt
             raise "deep"
@@ -178,8 +178,8 @@ describe('Phase 10 — Errors', () => {
       expect(output).toEqual(['deep'])
     })
 
-    it('nested always blocks all run', () => {
-      const { output } = run(`
+    it('nested always blocks all run', async () => {
+      const { output } = await run(`
         attempt
           attempt
             raise "fail"
@@ -198,9 +198,9 @@ describe('Phase 10 — Errors', () => {
     })
   })
 
-  describe('error data on caught errors', () => {
-    it('caught error has line and column', () => {
-      const { output } = run(`
+  describe('error data on caught errors', async () => {
+    it('caught error has line and column', async () => {
+      const { output } = await run(`
         attempt
           remember x as 10 / 0
         rescue e
@@ -213,8 +213,8 @@ describe('Phase 10 — Errors', () => {
     })
   })
 
-  describe('formatError', () => {
-    it('produces the correct formatted block with caret', () => {
+  describe('formatError', async () => {
+    it('produces the correct formatted block with caret', async () => {
       const sources = {
         'main.nova': 'remember x as 5\nshow "total: " + nums\nshow "done"',
       }
@@ -235,7 +235,7 @@ describe('Phase 10 — Errors', () => {
       expect(lines[5]).toBe('Hint: Convert the list first with nums.join(", ")')
     })
 
-    it('formats error without hint', () => {
+    it('formats error without hint', async () => {
       const sources = { 'test.nova': 'show 1 / 0' }
       const err = novaError('MathError', 'Cannot divide by zero.', {
         file: 'test.nova',
@@ -248,7 +248,7 @@ describe('Phase 10 — Errors', () => {
       expect(formatted).toContain('Cannot divide by zero.')
     })
 
-    it('formats error without source', () => {
+    it('formats error without source', async () => {
       const err = novaError('RuntimeError', 'Something failed.', {
         file: 'missing.nova',
         line: 5,

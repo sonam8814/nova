@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { run } from './testUtils.js'
 
-describe('Modules — use statement', () => {
-  it('imports top-level bindings from another file with use', () => {
+describe('Modules — use statement', async () => {
+  it('imports top-level bindings from another file with use', async () => {
     const files = {
       'helpers.nova': `
         define double with x
@@ -12,7 +12,7 @@ describe('Modules — use statement', () => {
       `,
     }
 
-    const result = run(`
+    const result = await run(`
       use "helpers"
       show double(21)
       show helper_name
@@ -22,7 +22,7 @@ describe('Modules — use statement', () => {
     expect(result.output).toEqual(['42', 'helpers'])
   })
 
-  it('imports with namespace alias using use ... as', () => {
+  it('imports with namespace alias using use ... as', async () => {
     const files = {
       'math_utils.nova': `
         define square with x
@@ -34,7 +34,7 @@ describe('Modules — use statement', () => {
       `,
     }
 
-    const result = run(`
+    const result = await run(`
       use "math_utils" as m
       show m.square(5)
       show m.cube(3)
@@ -44,7 +44,7 @@ describe('Modules — use statement', () => {
     expect(result.output).toEqual(['25', '27'])
   })
 
-  it('supports three-file project: main uses utils which uses math', () => {
+  it('supports three-file project: main uses utils which uses math', async () => {
     const files = {
       'math.nova': `
         define add with a, b
@@ -65,7 +65,7 @@ describe('Modules — use statement', () => {
       `,
     }
 
-    const result = run(`
+    const result = await run(`
       use "utils" as u
       show u.double(7)
       show u.sum_and_product(3, 4)
@@ -75,7 +75,7 @@ describe('Modules — use statement', () => {
     expect(result.output).toEqual(['14', '19'])
   })
 
-  it('caches modules — only executes once', () => {
+  it('caches modules — only executes once', async () => {
     const files = {
       'counter.nova': `
         show "loading counter"
@@ -83,7 +83,7 @@ describe('Modules — use statement', () => {
       `,
     }
 
-    const result = run(`
+    const result = await run(`
       use "counter"
       use "counter"
       show total
@@ -93,7 +93,7 @@ describe('Modules — use statement', () => {
     expect(result.output).toEqual(['loading counter', '42'])
   })
 
-  it('caching second use does not re-execute', () => {
+  it('caching second use does not re-execute', async () => {
     const files = {
       'counter.nova': `
         show "loading counter"
@@ -101,7 +101,7 @@ describe('Modules — use statement', () => {
       `,
     }
 
-    const result = run(`
+    const result = await run(`
       use "counter"
       show total
     `, { files })
@@ -110,7 +110,7 @@ describe('Modules — use statement', () => {
     expect(result.output).toEqual(['loading counter', '42'])
   })
 
-  it('detects circular imports and reports the cycle', () => {
+  it('detects circular imports and reports the cycle', async () => {
     const files = {
       'a.nova': `
         use "b"
@@ -122,7 +122,7 @@ describe('Modules — use statement', () => {
       `,
     }
 
-    const result = run(`use "a"`, { files })
+    const result = await run(`use "a"`, { files })
 
     expect(result.error).not.toBe(null)
     expect(result.error.kind || result.error.errorData?.kind).toBe('FileError')
@@ -132,8 +132,8 @@ describe('Modules — use statement', () => {
     expect(msg).toContain('b.nova')
   })
 
-  it('raises FileError for missing module', () => {
-    const result = run(`use "nonexistent"`, { files: {} })
+  it('raises FileError for missing module', async () => {
+    const result = await run(`use "nonexistent"`, { files: {} })
 
     expect(result.error).not.toBe(null)
     const kind = result.error.kind || result.error.errorData?.kind
@@ -142,14 +142,14 @@ describe('Modules — use statement', () => {
     expect(msg).toContain('nonexistent')
   })
 
-  it('auto-appends .nova extension when not provided', () => {
+  it('auto-appends .nova extension when not provided', async () => {
     const files = {
       'helpers.nova': `
         remember greeting as "hello"
       `,
     }
 
-    const result = run(`
+    const result = await run(`
       use "helpers"
       show greeting
     `, { files })
@@ -158,7 +158,7 @@ describe('Modules — use statement', () => {
     expect(result.output).toEqual(['hello'])
   })
 
-  it('imports classes from modules', () => {
+  it('imports classes from modules', async () => {
     const files = {
       'shapes.nova': `
         describe Circle
@@ -173,7 +173,7 @@ describe('Modules — use statement', () => {
       `,
     }
 
-    const result = run(`
+    const result = await run(`
       use "shapes"
       remember c as new Circle(5)
       show c.area()
@@ -183,7 +183,7 @@ describe('Modules — use statement', () => {
     expect(result.output).toEqual(['78.5'])
   })
 
-  it('namespace import prevents name collisions', () => {
+  it('namespace import prevents name collisions', async () => {
     const files = {
       'a.nova': `
         remember x as 10
@@ -193,7 +193,7 @@ describe('Modules — use statement', () => {
       `,
     }
 
-    const result = run(`
+    const result = await run(`
       use "a" as a
       use "b" as b
       show a.x
@@ -204,7 +204,7 @@ describe('Modules — use statement', () => {
     expect(result.output).toEqual(['10', '20'])
   })
 
-  it('imported functions have proper closures', () => {
+  it('imported functions have proper closures', async () => {
     const files = {
       'maker.nova': `
         define make_counter
@@ -217,7 +217,7 @@ describe('Modules — use statement', () => {
       `,
     }
 
-    const result = run(`
+    const result = await run(`
       use "maker"
       remember c as make_counter()
       show c()
@@ -229,14 +229,14 @@ describe('Modules — use statement', () => {
     expect(result.output).toEqual(['1', '2', '3'])
   })
 
-  it('accessing non-existent export from namespace raises NameError', () => {
+  it('accessing non-existent export from namespace raises NameError', async () => {
     const files = {
       'lib.nova': `
         remember x as 1
       `,
     }
 
-    const result = run(`
+    const result = await run(`
       use "lib" as lib
       show lib.y
     `, { files })
@@ -246,7 +246,7 @@ describe('Modules — use statement', () => {
     expect(kind).toBe('NameError')
   })
 
-  it('module with constants exports them correctly', () => {
+  it('module with constants exports them correctly', async () => {
     const files = {
       'config.nova': `
         constant PI as 3.14159
@@ -254,7 +254,7 @@ describe('Modules — use statement', () => {
       `,
     }
 
-    const result = run(`
+    const result = await run(`
       use "config" as cfg
       show cfg.PI
       show cfg.E
@@ -264,7 +264,7 @@ describe('Modules — use statement', () => {
     expect(result.output).toEqual(['3.14159', '2.71828'])
   })
 
-  it('three-level module chain works', () => {
+  it('three-level module chain works', async () => {
     const files = {
       'base.nova': `
         define base_fn
@@ -285,7 +285,7 @@ describe('Modules — use statement', () => {
       `,
     }
 
-    const result = run(`
+    const result = await run(`
       use "top"
       show top_fn()
     `, { files })
@@ -294,8 +294,8 @@ describe('Modules — use statement', () => {
     expect(result.output).toEqual(['base-mid-top'])
   })
 
-  it('use without module loader raises FileError', () => {
-    const result = run(`use "something"`)
+  it('use without module loader raises FileError', async () => {
+    const result = await run(`use "something"`)
 
     expect(result.error).not.toBe(null)
     const kind = result.error.kind || result.error.errorData?.kind

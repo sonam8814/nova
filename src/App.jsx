@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useRunner } from './state/useRunner.js'
 import Terminal from './components/Terminal.jsx'
+import InputPanel from './components/InputPanel.jsx'
 
 const DEFAULT_PROGRAM = `note Welcome to nova!
 remember name as "world"
@@ -23,7 +24,7 @@ show "Done!"
 
 export default function App() {
   const [source, setSource] = useState(DEFAULT_PROGRAM)
-  const { status, output, error, elapsedMs, run, stop } = useRunner()
+  const { status, output, error, elapsedMs, run, stop, sendInput } = useRunner()
 
   const handleRun = () => {
     run({ 'main.nova': source }, 'main.nova')
@@ -108,6 +109,7 @@ export default function App() {
         />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <Terminal output={output} status={status} elapsedMs={elapsedMs} />
+          <InputPanel visible={status === 'waiting'} onSubmit={sendInput} />
         </div>
       </div>
     </div>

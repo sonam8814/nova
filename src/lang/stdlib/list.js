@@ -105,14 +105,17 @@ export function getListMethod(list, name, callFunction, error, loc) {
       return { _type: 'list', elements: elems }
     },
 
-    sort_by(args) {
+    async sort_by(args) {
       if (args.length !== 1) throw error('TypeError', `'sort_by' expects 1 argument (comparator action), got ${args.length}.`, null, loc)
       const fn = args[0]
       if (!fn || fn._type !== 'function') {
         throw error('TypeError', `'sort_by' argument must be an action, got ${typeName(fn)}.`, null, loc)
       }
       const elems = [...list.elements]
-      const mapped = elems.map(el => ({ el, key: callFunction(fn, [el], loc) }))
+      const mapped = []
+      for (const el of elems) {
+        mapped.push({ el, key: await callFunction(fn, [el], loc) })
+      }
       mapped.sort((a, b) => {
         if (typeof a.key === 'number' && typeof b.key === 'number') return a.key - b.key
         if (typeof a.key === 'string' && typeof b.key === 'string') return a.key < b.key ? -1 : a.key > b.key ? 1 : 0
@@ -126,27 +129,35 @@ export function getListMethod(list, name, callFunction, error, loc) {
       return { _type: 'list', elements: [...list.elements] }
     },
 
-    map(args) {
+    async map(args) {
       if (args.length !== 1) throw error('TypeError', `'map' expects 1 argument (action), got ${args.length}.`, null, loc)
       const fn = args[0]
       if (!fn || fn._type !== 'function') {
         throw error('TypeError', `'map' argument must be an action, got ${typeName(fn)}.`, null, loc)
       }
-      const result = list.elements.map(el => callFunction(fn, [el], loc))
+      const result = []
+      for (const el of list.elements) {
+        result.push(await callFunction(fn, [el], loc))
+      }
       return { _type: 'list', elements: result }
     },
 
-    filter(args) {
+    async filter(args) {
       if (args.length !== 1) throw error('TypeError', `'filter' expects 1 argument (action), got ${args.length}.`, null, loc)
       const fn = args[0]
       if (!fn || fn._type !== 'function') {
         throw error('TypeError', `'filter' argument must be an action, got ${typeName(fn)}.`, null, loc)
       }
-      const result = list.elements.filter(el => isTruthy(callFunction(fn, [el], loc)))
+      const result = []
+      for (const el of list.elements) {
+        if (isTruthy(await callFunction(fn, [el], loc))) {
+          result.push(el)
+        }
+      }
       return { _type: 'list', elements: result }
     },
 
-    reduce(args) {
+    async reduce(args) {
       if (args.length !== 2) throw error('TypeError', `'reduce' expects 2 arguments (action, initial), got ${args.length}.`, null, loc)
       const fn = args[0]
       const initial = args[1]
@@ -155,7 +166,7 @@ export function getListMethod(list, name, callFunction, error, loc) {
       }
       let acc = initial
       for (const el of list.elements) {
-        acc = callFunction(fn, [acc, el], loc)
+        acc = await callFunction(fn, [acc, el], loc)
       }
       return acc
     },
@@ -192,26 +203,26 @@ export function getListMethod(list, name, callFunction, error, loc) {
       return result
     },
 
-    all(args) {
+    async all(args) {
       if (args.length !== 1) throw error('TypeError', `'all' expects 1 argument (action), got ${args.length}.`, null, loc)
       const fn = args[0]
       if (!fn || fn._type !== 'function') {
         throw error('TypeError', `'all' argument must be an action, got ${typeName(fn)}.`, null, loc)
       }
       for (const el of list.elements) {
-        if (!isTruthy(callFunction(fn, [el], loc))) return false
+        if (!isTruthy(await callFunction(fn, [el], loc))) return false
       }
       return true
     },
 
-    any(args) {
+    async any(args) {
       if (args.length !== 1) throw error('TypeError', `'any' expects 1 argument (action), got ${args.length}.`, null, loc)
       const fn = args[0]
       if (!fn || fn._type !== 'function') {
         throw error('TypeError', `'any' argument must be an action, got ${typeName(fn)}.`, null, loc)
       }
       for (const el of list.elements) {
-        if (isTruthy(callFunction(fn, [el], loc))) return true
+        if (isTruthy(await callFunction(fn, [el], loc))) return true
       }
       return false
     },
@@ -228,4 +239,3 @@ export function getListMethod(list, name, callFunction, error, loc) {
     _native: methods[name],
   }
 }
-

@@ -1,7 +1,7 @@
 import { ModuleLoader } from '../lang/modules.js'
 import { formatError } from '../lang/errors.js'
 
-export function runProgram({ files, entry }, post) {
+export async function runProgram({ files, entry }, post, waitForInput) {
   const fileStore = new Map()
   const start = performance.now()
 
@@ -21,15 +21,24 @@ export function runProgram({ files, entry }, post) {
     },
   }
 
+  const onAsk = waitForInput
+    ? async (prompt) => {
+        post({ type: 'output', text: prompt, stream: 'out' })
+        post({ type: 'needInput' })
+        return await waitForInput()
+      }
+    : null
+
   try {
     const loader = new ModuleLoader(files, {
       output: (text) => {
         post({ type: 'output', text, stream: 'out' })
       },
+      onAsk,
       fileSystem,
     })
 
-    loader.load(entry)
+    await loader.load(entry)
 
     const ms = Math.round(performance.now() - start)
     post({ type: 'done', ms })
@@ -56,12 +65,27 @@ export function runProgram({ files, entry }, post) {
 }
 
 if (typeof self !== 'undefined') {
+  let inputResolve = null
+
+  function waitForInput() {
+    return new Promise((resolve) => {
+      inputResolve = resolve
+    })
+  }
+
   self.onmessage = function (e) {
     const { type, ...data } = e.data
 
     switch (type) {
       case 'run':
-        runProgram(data, (msg) => self.postMessage(msg))
+        runProgram(data, (msg) => self.postMessage(msg), waitForInput)
+        break
+      case 'input':
+        if (inputResolve) {
+          const resolve = inputResolve
+          inputResolve = null
+          resolve(data.text)
+        }
         break
     }
   }

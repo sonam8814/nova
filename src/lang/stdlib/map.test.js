@@ -1,29 +1,29 @@
 import { describe, it, expect } from 'vitest'
 import { run } from '../testUtils.js'
 
-describe('Phase 7 — Map stdlib', () => {
+describe('Phase 7 — Map stdlib', async () => {
 
   // --- Basic access ---
 
-  describe('index access', () => {
-    it('reads a key', () => {
-      const { output } = run(`
+  describe('index access', async () => {
+    it('reads a key', async () => {
+      const { output } = await run(`
         remember ages as {"aditya": 21, "riya": 23}
         show ages["aditya"]
       `)
       expect(output).toEqual(['21'])
     })
 
-    it('missing key returns nothing', () => {
-      const { output } = run(`
+    it('missing key returns nothing', async () => {
+      const { output } = await run(`
         remember m as {"a": 1}
         show m["z"]
       `)
       expect(output).toEqual(['nothing'])
     })
 
-    it('set adds a new key', () => {
-      const { output } = run(`
+    it('set adds a new key', async () => {
+      const { output } = await run(`
         remember m as {"a": 1}
         set m["b"] to 2
         show m
@@ -31,8 +31,8 @@ describe('Phase 7 — Map stdlib', () => {
       expect(output).toEqual(['{"a": 1, "b": 2}'])
     })
 
-    it('set overwrites existing key', () => {
-      const { output } = run(`
+    it('set overwrites existing key', async () => {
+      const { output } = await run(`
         remember m as {"a": 1}
         set m["a"] to 99
         show m
@@ -40,8 +40,8 @@ describe('Phase 7 — Map stdlib', () => {
       expect(output).toEqual(['{"a": 99}'])
     })
 
-    it('supports number keys', () => {
-      const { output } = run(`
+    it('supports number keys', async () => {
+      const { output } = await run(`
         remember m as {1: "one", 2: "two"}
         show m[1]
       `)
@@ -51,17 +51,17 @@ describe('Phase 7 — Map stdlib', () => {
 
   // --- has ---
 
-  describe('has', () => {
-    it('returns yes for existing key', () => {
-      const { output } = run(`
+  describe('has', async () => {
+    it('returns yes for existing key', async () => {
+      const { output } = await run(`
         remember m as {"x": 10}
         show m.has("x")
       `)
       expect(output).toEqual(['yes'])
     })
 
-    it('returns no for missing key', () => {
-      const { output } = run(`
+    it('returns no for missing key', async () => {
+      const { output } = await run(`
         remember m as {"x": 10}
         show m.has("y")
       `)
@@ -71,9 +71,9 @@ describe('Phase 7 — Map stdlib', () => {
 
   // --- keys, values, entries ---
 
-  describe('keys', () => {
-    it('returns list of keys', () => {
-      const { output } = run(`
+  describe('keys', async () => {
+    it('returns list of keys', async () => {
+      const { output } = await run(`
         remember m as {"a": 1, "b": 2}
         show m.keys()
       `)
@@ -81,9 +81,9 @@ describe('Phase 7 — Map stdlib', () => {
     })
   })
 
-  describe('values', () => {
-    it('returns list of values', () => {
-      const { output } = run(`
+  describe('values', async () => {
+    it('returns list of values', async () => {
+      const { output } = await run(`
         remember m as {"a": 1, "b": 2}
         show m.values()
       `)
@@ -91,9 +91,9 @@ describe('Phase 7 — Map stdlib', () => {
     })
   })
 
-  describe('entries', () => {
-    it('returns list of [key, value] pairs', () => {
-      const { output } = run(`
+  describe('entries', async () => {
+    it('returns list of [key, value] pairs', async () => {
+      const { output } = await run(`
         remember m as {"x": 10, "y": 20}
         remember e as m.entries()
         show e[0]
@@ -105,9 +105,9 @@ describe('Phase 7 — Map stdlib', () => {
 
   // --- remove ---
 
-  describe('remove', () => {
-    it('removes a key and returns its value', () => {
-      const { output } = run(`
+  describe('remove', async () => {
+    it('removes a key and returns its value', async () => {
+      const { output } = await run(`
         remember m as {"a": 1, "b": 2, "c": 3}
         show m.remove("b")
         show m
@@ -115,8 +115,8 @@ describe('Phase 7 — Map stdlib', () => {
       expect(output).toEqual(['2', '{"a": 1, "c": 3}'])
     })
 
-    it('raises KeyError for missing key', () => {
-      const { error } = run(`
+    it('raises KeyError for missing key', async () => {
+      const { error } = await run(`
         remember m as {"a": 1}
         m.remove("z")
       `)
@@ -127,17 +127,17 @@ describe('Phase 7 — Map stdlib', () => {
 
   // --- size of ---
 
-  describe('size of', () => {
-    it('returns number of entries', () => {
-      const { output } = run(`
+  describe('size of', async () => {
+    it('returns number of entries', async () => {
+      const { output } = await run(`
         remember m as {"a": 1, "b": 2, "c": 3}
         show size of m
       `)
       expect(output).toEqual(['3'])
     })
 
-    it('returns 0 for empty map', () => {
-      const { output } = run(`
+    it('returns 0 for empty map', async () => {
+      const { output } = await run(`
         remember m as {}
         show size of m
       `)
@@ -147,9 +147,9 @@ describe('Phase 7 — Map stdlib', () => {
 
   // --- for each iteration ---
 
-  describe('for each', () => {
-    it('iterates over keys', () => {
-      const { output } = run(`
+  describe('for each', async () => {
+    it('iterates over keys', async () => {
+      const { output } = await run(`
         remember m as {"x": 1, "y": 2}
         for each k in m
           show k
@@ -158,8 +158,8 @@ describe('Phase 7 — Map stdlib', () => {
       expect(output).toEqual(['x', 'y'])
     })
 
-    it('iterates over key-value pairs', () => {
-      const { output } = run(`
+    it('iterates over key-value pairs', async () => {
+      const { output } = await run(`
         remember m as {"a": 10, "b": 20}
         for each k to v in m
           show "{k}={v}"
@@ -171,9 +171,9 @@ describe('Phase 7 — Map stdlib', () => {
 
   // --- mutation is shared ---
 
-  describe('mutation', () => {
-    it('map is shared by reference', () => {
-      const { output } = run(`
+  describe('mutation', async () => {
+    it('map is shared by reference', async () => {
+      const { output } = await run(`
         remember a as {"x": 1}
         remember b as a
         set a["y"] to 2
@@ -185,9 +185,9 @@ describe('Phase 7 — Map stdlib', () => {
 
   // --- unknown method ---
 
-  describe('unknown method', () => {
-    it('raises NameError for nonexistent method', () => {
-      const { error } = run(`
+  describe('unknown method', async () => {
+    it('raises NameError for nonexistent method', async () => {
+      const { error } = await run(`
         remember m as {"a": 1}
         m.foo()
       `)

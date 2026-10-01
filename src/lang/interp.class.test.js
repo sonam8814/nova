@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { run } from './testUtils.js'
 
-describe('Phase 9 — Classes and inheritance', () => {
+describe('Phase 9 — Classes and inheritance', async () => {
 
-  describe('basic class declaration and instantiation', () => {
-    it('declares a class and creates an instance with new', () => {
-      const { output } = run(`
+  describe('basic class declaration and instantiation', async () => {
+    it('declares a class and creates an instance with new', async () => {
+      const { output } = await run(`
         describe Point
           has x
           has y
@@ -16,8 +16,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['<Point>'])
     })
 
-    it('setup constructor sets fields via my', () => {
-      const { output } = run(`
+    it('setup constructor sets fields via my', async () => {
+      const { output } = await run(`
         describe Dog
           has name
           has age
@@ -33,8 +33,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['Rex', '3'])
     })
 
-    it('fields with defaults initialize correctly', () => {
-      const { output } = run(`
+    it('fields with defaults initialize correctly', async () => {
+      const { output } = await run(`
         describe Animal
           has legs as 4
           has sound as "unknown"
@@ -46,8 +46,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['4', 'unknown'])
     })
 
-    it('fields without defaults initialize to nothing', () => {
-      const { output } = run(`
+    it('fields without defaults initialize to nothing', async () => {
+      const { output } = await run(`
         describe Box
           has content
         done
@@ -57,8 +57,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['nothing'])
     })
 
-    it('setup overrides field defaults', () => {
-      const { output } = run(`
+    it('setup overrides field defaults', async () => {
+      const { output } = await run(`
         describe Animal
           has legs as 4
           define setup with legs
@@ -71,8 +71,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['8'])
     })
 
-    it('errors when passing args to class without setup', () => {
-      const { error } = run(`
+    it('errors when passing args to class without setup', async () => {
+      const { error } = await run(`
         describe Empty
         done
         remember e as new Empty(1, 2)
@@ -81,8 +81,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(error.message).toContain('no \'setup\' method')
     })
 
-    it('errors when new is called on a non-class', () => {
-      const { error } = run(`
+    it('errors when new is called on a non-class', async () => {
+      const { error } = await run(`
         remember x as 5
         remember y as new x()
       `)
@@ -91,9 +91,9 @@ describe('Phase 9 — Classes and inheritance', () => {
     })
   })
 
-  describe('method calls', () => {
-    it('calls a method on an instance', () => {
-      const { output } = run(`
+  describe('method calls', async () => {
+    it('calls a method on an instance', async () => {
+      const { output } = await run(`
         describe Dog
           has name
           define setup with name
@@ -109,8 +109,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['Rex barks'])
     })
 
-    it('method returns a value', () => {
-      const { output } = run(`
+    it('method returns a value', async () => {
+      const { output } = await run(`
         describe Calculator
           has value as 0
           define setup with v
@@ -126,8 +126,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['42'])
     })
 
-    it('method with parameters', () => {
-      const { output } = run(`
+    it('method with parameters', async () => {
+      const { output } = await run(`
         describe Greeter
           has prefix
           define setup with prefix
@@ -143,8 +143,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['Hello, Aditya!'])
     })
 
-    it('set my.field works inside a method', () => {
-      const { output } = run(`
+    it('set my.field works inside a method', async () => {
+      const { output } = await run(`
         describe Counter
           has count as 0
           define increment
@@ -160,8 +160,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['3'])
     })
 
-    it('class is displayed correctly', () => {
-      const { output } = run(`
+    it('class is displayed correctly', async () => {
+      const { output } = await run(`
         describe Dog
         done
         show Dog
@@ -170,9 +170,9 @@ describe('Phase 9 — Classes and inheritance', () => {
     })
   })
 
-  describe('inheritance', () => {
-    it('Animal/Dog example from the spec', () => {
-      const { output } = run(`
+  describe('inheritance', async () => {
+    it('Animal/Dog example from the spec', async () => {
+      const { output } = await run(`
         describe Animal
           has name
           has number age
@@ -211,8 +211,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['Rex barks', 'Rex, age 3', '4'])
     })
 
-    it('child inherits methods from parent class', () => {
-      const { output } = run(`
+    it('child inherits methods from parent class', async () => {
+      const { output } = await run(`
         describe Base
           define greet
             show "hello from Base"
@@ -226,8 +226,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['hello from Base'])
     })
 
-    it('child overrides parent method', () => {
-      const { output } = run(`
+    it('child overrides parent method', async () => {
+      const { output } = await run(`
         describe Base
           define speak
             show "base"
@@ -244,8 +244,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['child'])
     })
 
-    it('parent.setup chains correctly', () => {
-      const { output } = run(`
+    it('parent.setup chains correctly', async () => {
+      const { output } = await run(`
         describe A
           has x
           define setup with x
@@ -266,8 +266,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['10', '20'])
     })
 
-    it('three-level inheritance with parent at each level', () => {
-      const { output } = run(`
+    it('three-level inheritance with parent at each level', async () => {
+      const { output } = await run(`
         describe A
           define greet
             show "A"
@@ -291,8 +291,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['A', 'B', 'C'])
     })
 
-    it('field defaults inherited from superclass', () => {
-      const { output } = run(`
+    it('field defaults inherited from superclass', async () => {
+      const { output } = await run(`
         describe Vehicle
           has wheels as 4
           has engine as "gas"
@@ -308,8 +308,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['4', 'gas', '1000'])
     })
 
-    it('overridden method called from inherited method dispatches to override', () => {
-      const { output } = run(`
+    it('overridden method called from inherited method dispatches to override', async () => {
+      const { output } = await run(`
         describe Base
           define name
             give back "base"
@@ -329,8 +329,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['hello from child'])
     })
 
-    it('errors when inheriting from a non-class', () => {
-      const { error } = run(`
+    it('errors when inheriting from a non-class', async () => {
+      const { error } = await run(`
         describe Bad from abs
         done
       `)
@@ -338,8 +338,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(error.message).toContain('not a class')
     })
 
-    it('parent errors when class has no superclass', () => {
-      const { error } = run(`
+    it('parent errors when class has no superclass', async () => {
+      const { error } = await run(`
         describe Solo
           define act
             parent.act()
@@ -353,9 +353,9 @@ describe('Phase 9 — Classes and inheritance', () => {
     })
   })
 
-  describe('is a operator', () => {
-    it('instance is a its own class', () => {
-      const { output } = run(`
+  describe('is a operator', async () => {
+    it('instance is a its own class', async () => {
+      const { output } = await run(`
         describe Dog
         done
         remember d as new Dog()
@@ -364,8 +364,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['yes'])
     })
 
-    it('instance is a its ancestor class', () => {
-      const { output } = run(`
+    it('instance is a its ancestor class', async () => {
+      const { output } = await run(`
         describe Animal
         done
         describe Dog from Animal
@@ -376,8 +376,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['yes'])
     })
 
-    it('is a works through three levels', () => {
-      const { output } = run(`
+    it('is a works through three levels', async () => {
+      const { output } = await run(`
         describe A
         done
         describe B from A
@@ -392,8 +392,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['yes', 'yes', 'yes'])
     })
 
-    it('is a returns no for sibling classes', () => {
-      const { output } = run(`
+    it('is a returns no for sibling classes', async () => {
+      const { output } = await run(`
         describe Animal
         done
         describe Dog from Animal
@@ -406,8 +406,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['no'])
     })
 
-    it('is a returns no for unrelated classes', () => {
-      const { output } = run(`
+    it('is a returns no for unrelated classes', async () => {
+      const { output } = await run(`
         describe Dog
         done
         describe Car
@@ -418,8 +418,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['no'])
     })
 
-    it('is a returns no for non-instance values', () => {
-      const { output } = run(`
+    it('is a returns no for non-instance values', async () => {
+      const { output } = await run(`
         describe Dog
         done
         show 5 is a Dog
@@ -429,8 +429,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['no', 'no', 'no'])
     })
 
-    it('is a errors when right side is not a class', () => {
-      const { error } = run(`
+    it('is a errors when right side is not a class', async () => {
+      const { error } = await run(`
         remember d as 5
         show d is a d
       `)
@@ -439,9 +439,9 @@ describe('Phase 9 — Classes and inheritance', () => {
     })
   })
 
-  describe('edge cases', () => {
-    it('field defaults initialize from root to leaf', () => {
-      const { output } = run(`
+  describe('edge cases', async () => {
+    it('field defaults initialize from root to leaf', async () => {
+      const { output } = await run(`
         describe A
           has x as 1
         done
@@ -456,8 +456,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['2', '10'])
     })
 
-    it('to_text method used by show', () => {
-      const { output } = run(`
+    it('to_text method used by show', async () => {
+      const { output } = await run(`
         describe Point
           has x
           has y
@@ -475,8 +475,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['(3, 7)'])
     })
 
-    it('to_text method used in interpolation', () => {
-      const { output } = run(`
+    it('to_text method used in interpolation', async () => {
+      const { output } = await run(`
         describe Color
           has name
           define setup with name
@@ -492,8 +492,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['The color is red'])
     })
 
-    it('instance without to_text displays class name', () => {
-      const { output } = run(`
+    it('instance without to_text displays class name', async () => {
+      const { output } = await run(`
         describe Box
         done
         remember b as new Box()
@@ -502,8 +502,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['<Box>'])
     })
 
-    it('missing method error lists available methods', () => {
-      const { error } = run(`
+    it('missing method error lists available methods', async () => {
+      const { error } = await run(`
         describe Dog
           define speak
             show "woof"
@@ -521,8 +521,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(error.hint).toContain('speak')
     })
 
-    it('missing method error includes inherited methods', () => {
-      const { error } = run(`
+    it('missing method error includes inherited methods', async () => {
+      const { error } = await run(`
         describe Animal
           define breathe
             show "breathing"
@@ -541,8 +541,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(error.hint).toContain('breathe')
     })
 
-    it('multiple instances are independent', () => {
-      const { output } = run(`
+    it('multiple instances are independent', async () => {
+      const { output } = await run(`
         describe Counter
           has val as 0
           define inc
@@ -560,8 +560,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['2', '1'])
     })
 
-    it('method can create and return new instances', () => {
-      const { output } = run(`
+    it('method can create and return new instances', async () => {
+      const { output } = await run(`
         describe Pair
           has first
           has second
@@ -581,8 +581,8 @@ describe('Phase 9 — Classes and inheritance', () => {
       expect(output).toEqual(['2', '1'])
     })
 
-    it('instance stored in a list', () => {
-      const { output } = run(`
+    it('instance stored in a list', async () => {
+      const { output } = await run(`
         describe Item
           has name
           define setup with name

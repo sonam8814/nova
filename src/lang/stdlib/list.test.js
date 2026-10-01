@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { run } from '../testUtils.js'
 
-describe('Phase 7 — List stdlib', () => {
+describe('Phase 7 — List stdlib', async () => {
 
   // --- Mutation methods ---
 
-  describe('add', () => {
-    it('appends an element', () => {
-      const { output } = run(`
+  describe('add', async () => {
+    it('appends an element', async () => {
+      const { output } = await run(`
         remember nums as [1, 2]
         nums.add(3)
         show nums
@@ -15,8 +15,8 @@ describe('Phase 7 — List stdlib', () => {
       expect(output).toEqual(['[1, 2, 3]'])
     })
 
-    it('mutates in place', () => {
-      const { output } = run(`
+    it('mutates in place', async () => {
+      const { output } = await run(`
         remember a as [1]
         remember b as a
         a.add(2)
@@ -26,9 +26,9 @@ describe('Phase 7 — List stdlib', () => {
     })
   })
 
-  describe('insert', () => {
-    it('inserts at index', () => {
-      const { output } = run(`
+  describe('insert', async () => {
+    it('inserts at index', async () => {
+      const { output } = await run(`
         remember nums as [1, 3]
         nums.insert(1, 2)
         show nums
@@ -36,8 +36,8 @@ describe('Phase 7 — List stdlib', () => {
       expect(output).toEqual(['[1, 2, 3]'])
     })
 
-    it('inserts at beginning', () => {
-      const { output } = run(`
+    it('inserts at beginning', async () => {
+      const { output } = await run(`
         remember nums as [2, 3]
         nums.insert(0, 1)
         show nums
@@ -45,8 +45,8 @@ describe('Phase 7 — List stdlib', () => {
       expect(output).toEqual(['[1, 2, 3]'])
     })
 
-    it('inserts at end', () => {
-      const { output } = run(`
+    it('inserts at end', async () => {
+      const { output } = await run(`
         remember nums as [1, 2]
         nums.insert(2, 3)
         show nums
@@ -55,9 +55,9 @@ describe('Phase 7 — List stdlib', () => {
     })
   })
 
-  describe('remove', () => {
-    it('removes by index and returns the value', () => {
-      const { output } = run(`
+  describe('remove', async () => {
+    it('removes by index and returns the value', async () => {
+      const { output } = await run(`
         remember nums as [10, 20, 30]
         show nums.remove(1)
         show nums
@@ -65,8 +65,8 @@ describe('Phase 7 — List stdlib', () => {
       expect(output).toEqual(['20', '[10, 30]'])
     })
 
-    it('supports negative index', () => {
-      const { output } = run(`
+    it('supports negative index', async () => {
+      const { output } = await run(`
         remember nums as [10, 20, 30]
         show nums.remove(-1)
         show nums
@@ -74,8 +74,8 @@ describe('Phase 7 — List stdlib', () => {
       expect(output).toEqual(['30', '[10, 20]'])
     })
 
-    it('raises IndexError for out of bounds', () => {
-      const { error } = run(`
+    it('raises IndexError for out of bounds', async () => {
+      const { error } = await run(`
         remember nums as [1, 2]
         nums.remove(5)
       `)
@@ -84,9 +84,9 @@ describe('Phase 7 — List stdlib', () => {
     })
   })
 
-  describe('pop', () => {
-    it('removes and returns last element', () => {
-      const { output } = run(`
+  describe('pop', async () => {
+    it('removes and returns last element', async () => {
+      const { output } = await run(`
         remember nums as [1, 2, 3]
         show nums.pop()
         show nums
@@ -94,8 +94,8 @@ describe('Phase 7 — List stdlib', () => {
       expect(output).toEqual(['3', '[1, 2]'])
     })
 
-    it('raises IndexError on empty list', () => {
-      const { error } = run(`
+    it('raises IndexError on empty list', async () => {
+      const { error } = await run(`
         remember nums as []
         nums.pop()
       `)
@@ -106,17 +106,17 @@ describe('Phase 7 — List stdlib', () => {
 
   // --- Query methods ---
 
-  describe('index_of', () => {
-    it('returns index of element', () => {
-      const { output } = run(`
+  describe('index_of', async () => {
+    it('returns index of element', async () => {
+      const { output } = await run(`
         remember nums as [10, 20, 30]
         show nums.index_of(20)
       `)
       expect(output).toEqual(['1'])
     })
 
-    it('returns -1 if absent', () => {
-      const { output } = run(`
+    it('returns -1 if absent', async () => {
+      const { output } = await run(`
         remember nums as [10, 20, 30]
         show nums.index_of(99)
       `)
@@ -124,17 +124,17 @@ describe('Phase 7 — List stdlib', () => {
     })
   })
 
-  describe('has', () => {
-    it('returns yes when element exists', () => {
-      const { output } = run(`
+  describe('has', async () => {
+    it('returns yes when element exists', async () => {
+      const { output } = await run(`
         remember nums as [1, 2, 3]
         show nums.has(2)
       `)
       expect(output).toEqual(['yes'])
     })
 
-    it('returns no when element absent', () => {
-      const { output } = run(`
+    it('returns no when element absent', async () => {
+      const { output } = await run(`
         remember nums as [1, 2, 3]
         show nums.has(9)
       `)
@@ -144,17 +144,17 @@ describe('Phase 7 — List stdlib', () => {
 
   // --- Non-mutating methods (return new list) ---
 
-  describe('slice', () => {
-    it('slices [start, end)', () => {
-      const { output } = run(`
+  describe('slice', async () => {
+    it('slices [start, end)', async () => {
+      const { output } = await run(`
         remember nums as [10, 20, 30, 40, 50]
         show nums.slice(1, 3)
       `)
       expect(output).toEqual(['[20, 30]'])
     })
 
-    it('leaves original unchanged', () => {
-      const { output } = run(`
+    it('leaves original unchanged', async () => {
+      const { output } = await run(`
         remember nums as [1, 2, 3]
         remember s as nums.slice(0, 2)
         s.add(99)
@@ -164,17 +164,17 @@ describe('Phase 7 — List stdlib', () => {
     })
   })
 
-  describe('join', () => {
-    it('joins with separator', () => {
-      const { output } = run(`
+  describe('join', async () => {
+    it('joins with separator', async () => {
+      const { output } = await run(`
         remember nums as [1, 2, 3]
         show nums.join(", ")
       `)
       expect(output).toEqual(['1, 2, 3'])
     })
 
-    it('joins empty list to empty text', () => {
-      const { output } = run(`
+    it('joins empty list to empty text', async () => {
+      const { output } = await run(`
         remember nums as []
         show nums.join("-")
       `)
@@ -182,9 +182,9 @@ describe('Phase 7 — List stdlib', () => {
     })
   })
 
-  describe('reverse', () => {
-    it('returns a reversed copy', () => {
-      const { output } = run(`
+  describe('reverse', async () => {
+    it('returns a reversed copy', async () => {
+      const { output } = await run(`
         remember nums as [1, 2, 3]
         show nums.reverse()
         show nums
@@ -193,25 +193,25 @@ describe('Phase 7 — List stdlib', () => {
     })
   })
 
-  describe('sort', () => {
-    it('sorts numbers ascending', () => {
-      const { output } = run(`
+  describe('sort', async () => {
+    it('sorts numbers ascending', async () => {
+      const { output } = await run(`
         remember nums as [3, 1, 4, 1, 5]
         show nums.sort()
       `)
       expect(output).toEqual(['[1, 1, 3, 4, 5]'])
     })
 
-    it('sorts text alphabetically', () => {
-      const { output } = run(`
+    it('sorts text alphabetically', async () => {
+      const { output } = await run(`
         remember words as ["banana", "apple", "cherry"]
         show words.sort()
       `)
       expect(output).toEqual(['["apple", "banana", "cherry"]'])
     })
 
-    it('leaves original unchanged', () => {
-      const { output } = run(`
+    it('leaves original unchanged', async () => {
+      const { output } = await run(`
         remember nums as [3, 1, 2]
         remember sorted as nums.sort()
         show nums
@@ -221,9 +221,9 @@ describe('Phase 7 — List stdlib', () => {
     })
   })
 
-  describe('sort_by', () => {
-    it('sorts by key function', () => {
-      const { output } = run(`
+  describe('sort_by', async () => {
+    it('sorts by key function', async () => {
+      const { output } = await run(`
         remember nums as [3, 1, 2]
         show nums.sort_by(action with x
           give back -x
@@ -233,9 +233,9 @@ describe('Phase 7 — List stdlib', () => {
     })
   })
 
-  describe('copy', () => {
-    it('returns a shallow copy', () => {
-      const { output } = run(`
+  describe('copy', async () => {
+    it('returns a shallow copy', async () => {
+      const { output } = await run(`
         remember a as [1, 2, 3]
         remember b as a.copy()
         b.add(4)
@@ -248,9 +248,9 @@ describe('Phase 7 — List stdlib', () => {
 
   // --- Higher-order methods ---
 
-  describe('map', () => {
-    it('maps with an action', () => {
-      const { output } = run(`
+  describe('map', async () => {
+    it('maps with an action', async () => {
+      const { output } = await run(`
         remember nums as [1, 2, 3]
         show nums.map(action with x
           give back x * 2
@@ -259,8 +259,8 @@ describe('Phase 7 — List stdlib', () => {
       expect(output).toEqual(['[2, 4, 6]'])
     })
 
-    it('returns new list, leaves original unchanged', () => {
-      const { output } = run(`
+    it('returns new list, leaves original unchanged', async () => {
+      const { output } = await run(`
         remember nums as [1, 2, 3]
         remember doubled as nums.map(action with x
           give back x * 2
@@ -271,9 +271,9 @@ describe('Phase 7 — List stdlib', () => {
     })
   })
 
-  describe('filter', () => {
-    it('filters with a predicate', () => {
-      const { output } = run(`
+  describe('filter', async () => {
+    it('filters with a predicate', async () => {
+      const { output } = await run(`
         remember nums as [1, 2, 3, 4, 5, 6]
         show nums.filter(action with x
           give back x % 2 == 0
@@ -283,9 +283,9 @@ describe('Phase 7 — List stdlib', () => {
     })
   })
 
-  describe('reduce', () => {
-    it('reduces with accumulator', () => {
-      const { output } = run(`
+  describe('reduce', async () => {
+    it('reduces with accumulator', async () => {
+      const { output } = await run(`
         remember nums as [1, 2, 3, 4]
         show nums.reduce(action with acc, x
           give back acc + x
@@ -295,17 +295,17 @@ describe('Phase 7 — List stdlib', () => {
     })
   })
 
-  describe('sum', () => {
-    it('sums numbers', () => {
-      const { output } = run(`
+  describe('sum', async () => {
+    it('sums numbers', async () => {
+      const { output } = await run(`
         remember nums as [10, 20, 30]
         show nums.sum()
       `)
       expect(output).toEqual(['60'])
     })
 
-    it('raises TypeError on non-numbers', () => {
-      const { error } = run(`
+    it('raises TypeError on non-numbers', async () => {
+      const { error } = await run(`
         remember items as [1, "two"]
         items.sum()
       `)
@@ -314,25 +314,25 @@ describe('Phase 7 — List stdlib', () => {
     })
   })
 
-  describe('min and max', () => {
-    it('min returns smallest', () => {
-      const { output } = run(`
+  describe('min and max', async () => {
+    it('min returns smallest', async () => {
+      const { output } = await run(`
         remember nums as [5, 2, 8, 1]
         show nums.min()
       `)
       expect(output).toEqual(['1'])
     })
 
-    it('max returns largest', () => {
-      const { output } = run(`
+    it('max returns largest', async () => {
+      const { output } = await run(`
         remember nums as [5, 2, 8, 1]
         show nums.max()
       `)
       expect(output).toEqual(['8'])
     })
 
-    it('min on empty list raises IndexError', () => {
-      const { error } = run(`
+    it('min on empty list raises IndexError', async () => {
+      const { error } = await run(`
         remember nums as []
         nums.min()
       `)
@@ -341,9 +341,9 @@ describe('Phase 7 — List stdlib', () => {
     })
   })
 
-  describe('all and any', () => {
-    it('all returns yes when all match', () => {
-      const { output } = run(`
+  describe('all and any', async () => {
+    it('all returns yes when all match', async () => {
+      const { output } = await run(`
         remember nums as [2, 4, 6]
         show nums.all(action with x
           give back x % 2 == 0
@@ -352,8 +352,8 @@ describe('Phase 7 — List stdlib', () => {
       expect(output).toEqual(['yes'])
     })
 
-    it('all returns no when one fails', () => {
-      const { output } = run(`
+    it('all returns no when one fails', async () => {
+      const { output } = await run(`
         remember nums as [2, 3, 6]
         show nums.all(action with x
           give back x % 2 == 0
@@ -362,8 +362,8 @@ describe('Phase 7 — List stdlib', () => {
       expect(output).toEqual(['no'])
     })
 
-    it('any returns yes when one matches', () => {
-      const { output } = run(`
+    it('any returns yes when one matches', async () => {
+      const { output } = await run(`
         remember nums as [1, 3, 4]
         show nums.any(action with x
           give back x % 2 == 0
@@ -372,8 +372,8 @@ describe('Phase 7 — List stdlib', () => {
       expect(output).toEqual(['yes'])
     })
 
-    it('any returns no when none match', () => {
-      const { output } = run(`
+    it('any returns no when none match', async () => {
+      const { output } = await run(`
         remember nums as [1, 3, 5]
         show nums.any(action with x
           give back x % 2 == 0
@@ -385,17 +385,17 @@ describe('Phase 7 — List stdlib', () => {
 
   // --- Index access (already in interpreter, but verify edge cases) ---
 
-  describe('index access', () => {
-    it('negative index reads from end', () => {
-      const { output } = run(`
+  describe('index access', async () => {
+    it('negative index reads from end', async () => {
+      const { output } = await run(`
         remember nums as [10, 20, 30]
         show nums[-1]
       `)
       expect(output).toEqual(['30'])
     })
 
-    it('out of bounds raises IndexError', () => {
-      const { error } = run(`
+    it('out of bounds raises IndexError', async () => {
+      const { error } = await run(`
         remember nums as [1, 2, 3]
         show nums[10]
       `)
@@ -408,9 +408,9 @@ describe('Phase 7 — List stdlib', () => {
 
   // --- Unknown method ---
 
-  describe('unknown method', () => {
-    it('raises NameError for nonexistent method', () => {
-      const { error } = run(`
+  describe('unknown method', async () => {
+    it('raises NameError for nonexistent method', async () => {
+      const { error } = await run(`
         remember nums as [1, 2]
         nums.foo()
       `)

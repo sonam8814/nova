@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { run } from './testUtils.js'
 
-describe('Phase 6 — Functions and closures', () => {
+describe('Phase 6 — Functions and closures', async () => {
 
   // --- Basic function declaration and calling ---
 
-  describe('named functions', () => {
-    it('defines and calls a simple function', () => {
-      const { output } = run(`
+  describe('named functions', async () => {
+    it('defines and calls a simple function', async () => {
+      const { output } = await run(`
         define greet
           show "hello"
         done
@@ -16,8 +16,8 @@ describe('Phase 6 — Functions and closures', () => {
       expect(output).toEqual(['hello'])
     })
 
-    it('function with parameters', () => {
-      const { output } = run(`
+    it('function with parameters', async () => {
+      const { output } = await run(`
         define add with a, b
           give back a + b
         done
@@ -26,8 +26,8 @@ describe('Phase 6 — Functions and closures', () => {
       expect(output).toEqual(['5'])
     })
 
-    it('give back returns a value', () => {
-      const { output } = run(`
+    it('give back returns a value', async () => {
+      const { output } = await run(`
         define double with x
           give back x * 2
         done
@@ -36,8 +36,8 @@ describe('Phase 6 — Functions and closures', () => {
       expect(output).toEqual(['14'])
     })
 
-    it('function with no give back returns nothing', () => {
-      const { output } = run(`
+    it('function with no give back returns nothing', async () => {
+      const { output } = await run(`
         define do_stuff
           remember x as 1
         done
@@ -49,9 +49,9 @@ describe('Phase 6 — Functions and closures', () => {
 
   // --- Default parameters ---
 
-  describe('default parameters', () => {
-    it('uses default when argument not provided', () => {
-      const { output } = run(`
+  describe('default parameters', async () => {
+    it('uses default when argument not provided', async () => {
+      const { output } = await run(`
         define greet with name, greeting as "Hello"
           show "{greeting}, {name}"
         done
@@ -60,8 +60,8 @@ describe('Phase 6 — Functions and closures', () => {
       expect(output).toEqual(['Hello, Aditya'])
     })
 
-    it('overrides default when argument provided', () => {
-      const { output } = run(`
+    it('overrides default when argument provided', async () => {
+      const { output } = await run(`
         define greet with name, greeting as "Hello"
           show "{greeting}, {name}"
         done
@@ -70,8 +70,8 @@ describe('Phase 6 — Functions and closures', () => {
       expect(output).toEqual(['Hey, Aditya'])
     })
 
-    it('multiple defaults', () => {
-      const { output } = run(`
+    it('multiple defaults', async () => {
+      const { output } = await run(`
         define f with a, b as 10, c as 20
           give back a + b + c
         done
@@ -85,9 +85,9 @@ describe('Phase 6 — Functions and closures', () => {
 
   // --- Hoisting ---
 
-  describe('hoisting', () => {
-    it('function can be called before it is defined', () => {
-      const { output } = run(`
+  describe('hoisting', async () => {
+    it('function can be called before it is defined', async () => {
+      const { output } = await run(`
         show double(5)
         define double with x
           give back x * 2
@@ -96,8 +96,8 @@ describe('Phase 6 — Functions and closures', () => {
       expect(output).toEqual(['10'])
     })
 
-    it('mutual recursion works via hoisting', () => {
-      const { output } = run(`
+    it('mutual recursion works via hoisting', async () => {
+      const { output } = await run(`
         define is_even with n
           check if n == 0
             give back yes
@@ -121,9 +121,9 @@ describe('Phase 6 — Functions and closures', () => {
 
   // --- Closures ---
 
-  describe('closures', () => {
-    it('closure captures enclosing scope', () => {
-      const { output } = run(`
+  describe('closures', async () => {
+    it('closure captures enclosing scope', async () => {
+      const { output } = await run(`
         define make_counter
           remember cnt as 0
           define increment
@@ -141,8 +141,8 @@ describe('Phase 6 — Functions and closures', () => {
       expect(output).toEqual(['1', '2', '3'])
     })
 
-    it('functions are first-class values', () => {
-      const { output } = run(`
+    it('functions are first-class values', async () => {
+      const { output } = await run(`
         define add with a, b
           give back a + b
         done
@@ -155,9 +155,9 @@ describe('Phase 6 — Functions and closures', () => {
 
   // --- Anonymous functions (actions) ---
 
-  describe('actions (anonymous functions)', () => {
-    it('basic action', () => {
-      const { output } = run(`
+  describe('actions (anonymous functions)', async () => {
+    it('basic action', async () => {
+      const { output } = await run(`
         remember double as action with x
           give back x * 2
         done
@@ -166,8 +166,8 @@ describe('Phase 6 — Functions and closures', () => {
       expect(output).toEqual(['10'])
     })
 
-    it('action captures closure', () => {
-      const { output } = run(`
+    it('action captures closure', async () => {
+      const { output } = await run(`
         remember base as 100
         remember add_base as action with x
           give back x + base
@@ -177,8 +177,8 @@ describe('Phase 6 — Functions and closures', () => {
       expect(output).toEqual(['105'])
     })
 
-    it('action as argument', () => {
-      const { output } = run(`
+    it('action as argument', async () => {
+      const { output } = await run(`
         define apply with f, x
           give back f(x)
         done
@@ -192,9 +192,9 @@ describe('Phase 6 — Functions and closures', () => {
 
   // --- Recursion ---
 
-  describe('recursion', () => {
-    it('fib(20) equals 6765', () => {
-      const { output } = run(`
+  describe('recursion', async () => {
+    it('fib(20) equals 6765', async () => {
+      const { output } = await run(`
         define fib with n
           check if n <= 1
             give back n
@@ -206,8 +206,8 @@ describe('Phase 6 — Functions and closures', () => {
       expect(output).toEqual(['6765'])
     })
 
-    it('factorial', () => {
-      const { output } = run(`
+    it('factorial', async () => {
+      const { output } = await run(`
         define fact with n
           check if n <= 1
             give back 1
@@ -222,9 +222,9 @@ describe('Phase 6 — Functions and closures', () => {
 
   // --- Error cases ---
 
-  describe('error cases', () => {
-    it('arity mismatch — too few arguments', () => {
-      const { error } = run(`
+  describe('error cases', async () => {
+    it('arity mismatch — too few arguments', async () => {
+      const { error } = await run(`
         define add with a, b
           give back a + b
         done
@@ -236,8 +236,8 @@ describe('Phase 6 — Functions and closures', () => {
       expect(error.message).toMatch(/got 1/)
     })
 
-    it('arity mismatch — too many arguments', () => {
-      const { error } = run(`
+    it('arity mismatch — too many arguments', async () => {
+      const { error } = await run(`
         define add with a, b
           give back a + b
         done
@@ -249,8 +249,8 @@ describe('Phase 6 — Functions and closures', () => {
       expect(error.message).toMatch(/got 3/)
     })
 
-    it('calling a non-function raises TypeError', () => {
-      const { error } = run(`
+    it('calling a non-function raises TypeError', async () => {
+      const { error } = await run(`
         remember x as 5
         x()
       `)
@@ -259,8 +259,8 @@ describe('Phase 6 — Functions and closures', () => {
       expect(error.message).toMatch(/not callable/)
     })
 
-    it('infinite recursion raises DepthError without overflowing JS stack', () => {
-      const { error } = run(`
+    it('infinite recursion raises DepthError without overflowing JS stack', async () => {
+      const { error } = await run(`
         define boom
           boom()
         done
@@ -271,8 +271,8 @@ describe('Phase 6 — Functions and closures', () => {
       expect(error.message).toMatch(/depth/)
     })
 
-    it('arity message for functions with defaults shows range', () => {
-      const { error } = run(`
+    it('arity message for functions with defaults shows range', async () => {
+      const { error } = await run(`
         define f with a, b as 10
           give back a + b
         done
@@ -286,9 +286,9 @@ describe('Phase 6 — Functions and closures', () => {
 
   // --- Nested functions and scoping ---
 
-  describe('nested functions and scoping', () => {
-    it('inner function sees outer variables', () => {
-      const { output } = run(`
+  describe('nested functions and scoping', async () => {
+    it('inner function sees outer variables', async () => {
+      const { output } = await run(`
         define outer
           remember x as 42
           define inner
@@ -301,8 +301,8 @@ describe('Phase 6 — Functions and closures', () => {
       expect(output).toEqual(['42'])
     })
 
-    it('give back inside nested conditionals', () => {
-      const { output } = run(`
+    it('give back inside nested conditionals', async () => {
+      const { output } = await run(`
         define classify with n
           check if n > 0
             give back "positive"
@@ -319,8 +319,8 @@ describe('Phase 6 — Functions and closures', () => {
       expect(output).toEqual(['positive', 'negative', 'zero'])
     })
 
-    it('give back inside a loop exits the function', () => {
-      const { output } = run(`
+    it('give back inside a loop exits the function', async () => {
+      const { output } = await run(`
         define find with nums, target
           count i from 0 to size of nums - 1
             check if nums[i] == target

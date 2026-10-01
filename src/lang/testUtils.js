@@ -4,9 +4,10 @@ import { Resolver } from './resolver.js'
 import { Interpreter } from './interpreter.js'
 import { ModuleLoader } from './modules.js'
 
-export function run(source, { input = [], files = {}, fileSystem } = {}) {
+export async function run(source, { input = [], files = {}, fileSystem } = {}) {
   const output = []
   let error = null
+  const inputQueue = [...input]
 
   try {
     const tokens = new Lexer(source, 'test.nova').tokenize()
@@ -19,14 +20,26 @@ export function run(source, { input = [], files = {}, fileSystem } = {}) {
       return { output, error: resolverErrors[0], resolverErrors }
     }
 
+    const onAsk = inputQueue.length > 0
+      ? async (prompt) => {
+          output.push(prompt)
+          if (inputQueue.length === 0) {
+            throw new Error('No more input available for ask')
+          }
+          return inputQueue.shift()
+        }
+      : null
+
     const interp = new Interpreter({
       output: (text) => output.push(text),
+      onAsk,
       fileName: 'test.nova',
     })
 
     const allSources = { 'test.nova': source, ...files }
     const loader = new ModuleLoader(allSources, {
       output: (text) => output.push(text),
+      onAsk,
       fileSystem: fileSystem || null,
     })
     interp.moduleLoader = loader
@@ -35,7 +48,7 @@ export function run(source, { input = [], files = {}, fileSystem } = {}) {
       loader.registerFileSystemGlobals(interp)
     }
 
-    interp.run(program)
+    await interp.run(program)
   } catch (e) {
     error = e
   }

@@ -6,9 +6,10 @@ import { FILE_EXT } from './config.js'
 import { novaError, NovaThrow } from './errors.js'
 
 export class ModuleLoader {
-  constructor(sources, { output, fileSystem } = {}) {
+  constructor(sources, { output, onAsk, fileSystem } = {}) {
     this.sources = sources
     this.output = output || (() => {})
+    this.onAsk = onAsk || null
     this.fileSystem = fileSystem || null
     this.cache = new Map()
     this.loading = new Set()
@@ -22,7 +23,7 @@ export class ModuleLoader {
     return path
   }
 
-  load(requestedPath, fromFile) {
+  async load(requestedPath, fromFile) {
     const path = this.resolvePath(requestedPath)
 
     if (this.cache.has(path)) {
@@ -59,6 +60,7 @@ export class ModuleLoader {
 
     const interp = new Interpreter({
       output: this.output,
+      onAsk: this.onAsk,
       fileName: path,
     })
 
@@ -68,7 +70,7 @@ export class ModuleLoader {
       this.registerFileSystemGlobals(interp)
     }
 
-    interp.run(program)
+    await interp.run(program)
 
     this.loading.delete(path)
     this.cache.set(path, interp.env)

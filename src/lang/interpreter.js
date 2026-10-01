@@ -25,8 +25,9 @@ export class ReturnSignal {
 }
 
 export class Interpreter {
-  constructor({ output, fileName = 'main.nova' } = {}) {
+  constructor({ output, onAsk, fileName = 'main.nova' } = {}) {
     this.output = output || (() => {})
+    this.onAsk = onAsk || null
     this.fileName = fileName
     this.globals = new Environment()
     this.env = this.globals
@@ -38,10 +39,10 @@ export class Interpreter {
     registerGlobals(this.globals, (kind, msg, hint, loc) => this.error(kind, msg, hint, loc))
   }
 
-  run(program) {
+  async run(program) {
     this.hoistFunctions(program.body)
     for (const stmt of program.body) {
-      this.execute(stmt)
+      await this.execute(stmt)
     }
   }
 
@@ -57,50 +58,50 @@ export class Interpreter {
     }
   }
 
-  execute(node) {
+  async execute(node) {
     switch (node.type) {
-      case 'Program': return this.run(node)
-      case 'Declare': return this.execDeclare(node)
-      case 'Assign': return this.execAssign(node)
-      case 'Show': return this.execShow(node)
-      case 'If': return this.execIf(node)
-      case 'While': return this.execWhile(node)
-      case 'Repeat': return this.execRepeat(node)
-      case 'Count': return this.execCount(node)
-      case 'ForEach': return this.execForEach(node)
-      case 'Forever': return this.execForever(node)
+      case 'Program': return await this.run(node)
+      case 'Declare': return await this.execDeclare(node)
+      case 'Assign': return await this.execAssign(node)
+      case 'Show': return await this.execShow(node)
+      case 'If': return await this.execIf(node)
+      case 'While': return await this.execWhile(node)
+      case 'Repeat': return await this.execRepeat(node)
+      case 'Count': return await this.execCount(node)
+      case 'ForEach': return await this.execForEach(node)
+      case 'Forever': return await this.execForever(node)
       case 'FuncDecl': return this.execFuncDecl(node)
       case 'ClassDecl': return this.execClassDecl(node)
-      case 'Return': return this.execReturn(node)
-      case 'Raise': return this.execRaise(node)
-      case 'Attempt': return this.execAttempt(node)
-      case 'Use': return this.execUse(node)
+      case 'Return': return await this.execReturn(node)
+      case 'Raise': return await this.execRaise(node)
+      case 'Attempt': return await this.execAttempt(node)
+      case 'Use': return await this.execUse(node)
       case 'Skip': throw new ContinueSignal()
       case 'Stop': throw new BreakSignal()
-      case 'ExprStmt': return this.evaluate(node.expression)
+      case 'ExprStmt': return await this.evaluate(node.expression)
       default:
         throw this.error('RuntimeError', `Cannot execute '${node.type}' yet.`, null, node.loc)
     }
   }
 
-  evaluate(node) {
+  async evaluate(node) {
     switch (node.type) {
       case 'Num': return node.value
       case 'Text': return node.value
       case 'Bool': return node.value
       case 'Nothing': return null
       case 'Ident': return this.evalIdent(node)
-      case 'Binary': return this.evalBinary(node)
-      case 'Unary': return this.evalUnary(node)
-      case 'Grouping': return this.evaluate(node.expression)
-      case 'ListLit': return this.evalListLit(node)
-      case 'MapLit': return this.evalMapLit(node)
-      case 'Index': return this.evalIndex(node)
-      case 'Property': return this.evalProperty(node)
-      case 'Call': return this.evalCall(node)
+      case 'Binary': return await this.evalBinary(node)
+      case 'Unary': return await this.evalUnary(node)
+      case 'Grouping': return await this.evaluate(node.expression)
+      case 'ListLit': return await this.evalListLit(node)
+      case 'MapLit': return await this.evalMapLit(node)
+      case 'Index': return await this.evalIndex(node)
+      case 'Property': return await this.evalProperty(node)
+      case 'Call': return await this.evalCall(node)
       case 'Action': return this.evalAction(node)
-      case 'New': return this.evalNew(node)
-      case 'Interpolation': return this.evalInterpolation(node)
+      case 'New': return await this.evalNew(node)
+      case 'Interpolation': return await this.evalInterpolation(node)
       default:
         throw this.error('RuntimeError', `Cannot evaluate '${node.type}' yet.`, null, node.loc)
     }
@@ -108,8 +109,8 @@ export class Interpreter {
 
   // --- Statements ---
 
-  execDeclare(node) {
-    const value = this.evaluate(node.value)
+  async execDeclare(node) {
+    const value = await this.evaluate(node.value)
     if (node.typeHint) {
       this.checkType(value, node.typeHint, node.name, node.loc)
     }
@@ -126,8 +127,8 @@ export class Interpreter {
     }
   }
 
-  execAssign(node) {
-    const value = this.evaluate(node.value)
+  async execAssign(node) {
+    const value = await this.evaluate(node.value)
     const target = node.target
 
     if (target.type === 'Ident') {
@@ -143,8 +144,8 @@ export class Interpreter {
     }
 
     if (target.type === 'Index') {
-      const obj = this.evaluate(target.object)
-      const idx = this.evaluate(target.index)
+      const obj = await this.evaluate(target.object)
+      const idx = await this.evaluate(target.index)
 
       if (obj && obj._type === 'list') {
         let index = idx
@@ -180,7 +181,7 @@ export class Interpreter {
         instance.fields.set(target.name, value)
         return
       }
-      const obj = this.evaluate(target.object)
+      const obj = await this.evaluate(target.object)
       if (obj && obj._type === 'instance') {
         const fieldType = this.findFieldType(obj.klass, target.name)
         if (fieldType) {
@@ -195,36 +196,49 @@ export class Interpreter {
     throw this.error('RuntimeError', 'Invalid assignment target.', null, target.loc)
   }
 
-  execShow(node) {
-    const values = node.expressions.map(e => this.evaluate(e))
-    const text = values.map(v => toDisplay(v, (inst) => this.callInstanceToText(inst))).join(' ')
-    this.output(text)
+  async execShow(node) {
+    const values = []
+    for (const e of node.expressions) {
+      values.push(await this.evaluate(e))
+    }
+    const resolved = []
+    for (const v of values) {
+      if (v && v._type === 'instance') {
+        const text = await this.callInstanceToText(v)
+        if (text !== undefined) {
+          resolved.push(text)
+          continue
+        }
+      }
+      resolved.push(toDisplay(v))
+    }
+    this.output(resolved.join(' '))
   }
 
-  callInstanceToText(instance) {
+  async callInstanceToText(instance) {
     const method = this.findMethod(instance.klass, 'to_text')
     if (!method) return undefined
-    return this.callMethod(instance, method, [], null)
+    return await this.callMethod(instance, method, [], null)
   }
 
-  execIf(node) {
+  async execIf(node) {
     for (const branch of node.branches) {
-      const condition = this.evaluate(branch.condition)
+      const condition = await this.evaluate(branch.condition)
       if (isTruthy(condition)) {
-        this.executeBlock(branch.body)
+        await this.executeBlock(branch.body)
         return
       }
     }
     if (node.otherwise) {
-      this.executeBlock(node.otherwise)
+      await this.executeBlock(node.otherwise)
     }
   }
 
-  execWhile(node) {
-    while (isTruthy(this.evaluate(node.condition))) {
+  async execWhile(node) {
+    while (isTruthy(await this.evaluate(node.condition))) {
       this.checkStepLimit(node.loc)
       try {
-        this.executeBlock(node.body)
+        await this.executeBlock(node.body)
       } catch (e) {
         if (e instanceof BreakSignal) break
         if (e instanceof ContinueSignal) continue
@@ -233,8 +247,8 @@ export class Interpreter {
     }
   }
 
-  execRepeat(node) {
-    const count = this.evaluate(node.count)
+  async execRepeat(node) {
+    const count = await this.evaluate(node.count)
     if (typeof count !== 'number' || !Number.isInteger(count)) {
       throw this.error('TypeError', `Repeat count must be an integer, got ${typeName(count)}.`, null, node.loc)
     }
@@ -252,7 +266,7 @@ export class Interpreter {
           }
         }
         try {
-          this.executeBlock(node.body)
+          await this.executeBlock(node.body)
         } catch (e) {
           if (e instanceof BreakSignal) break
           if (e instanceof ContinueSignal) continue
@@ -264,10 +278,10 @@ export class Interpreter {
     }
   }
 
-  execCount(node) {
-    const from = this.evaluate(node.from)
-    const to = this.evaluate(node.to)
-    const by = node.by ? this.evaluate(node.by) : 1
+  async execCount(node) {
+    const from = await this.evaluate(node.from)
+    const to = await this.evaluate(node.to)
+    const by = node.by ? await this.evaluate(node.by) : 1
 
     if (typeof from !== 'number') throw this.error('TypeError', `Count 'from' must be a number, got ${typeName(from)}.`, null, node.loc)
     if (typeof to !== 'number') throw this.error('TypeError', `Count 'to' must be a number, got ${typeName(to)}.`, null, node.loc)
@@ -284,7 +298,7 @@ export class Interpreter {
           this.checkStepLimit(node.loc)
           loopEnv.assign(node.name, i)
           try {
-            this.executeBlock(node.body)
+            await this.executeBlock(node.body)
           } catch (e) {
             if (e instanceof BreakSignal) break
             if (e instanceof ContinueSignal) continue
@@ -296,7 +310,7 @@ export class Interpreter {
           this.checkStepLimit(node.loc)
           loopEnv.assign(node.name, i)
           try {
-            this.executeBlock(node.body)
+            await this.executeBlock(node.body)
           } catch (e) {
             if (e instanceof BreakSignal) break
             if (e instanceof ContinueSignal) continue
@@ -309,8 +323,8 @@ export class Interpreter {
     }
   }
 
-  execForEach(node) {
-    const iterable = this.evaluate(node.iterable)
+  async execForEach(node) {
+    const iterable = await this.evaluate(node.iterable)
     const loopEnv = new Environment(this.env)
     const prevEnv = this.env
     this.env = loopEnv
@@ -354,7 +368,7 @@ export class Interpreter {
           }
         }
         try {
-          this.executeBlock(node.body)
+          await this.executeBlock(node.body)
         } catch (e) {
           if (e instanceof BreakSignal) break
           if (e instanceof ContinueSignal) continue
@@ -366,11 +380,11 @@ export class Interpreter {
     }
   }
 
-  execForever(node) {
+  async execForever(node) {
     while (true) {
       this.checkStepLimit(node.loc)
       try {
-        this.executeBlock(node.body)
+        await this.executeBlock(node.body)
       } catch (e) {
         if (e instanceof BreakSignal) break
         if (e instanceof ContinueSignal) continue
@@ -379,10 +393,10 @@ export class Interpreter {
     }
   }
 
-  executeBlock(body) {
+  async executeBlock(body) {
     this.hoistFunctions(body)
     for (const stmt of body) {
-      this.execute(stmt)
+      await this.execute(stmt)
     }
   }
 
@@ -434,13 +448,13 @@ export class Interpreter {
     this.env.declare(node.name, klass, {})
   }
 
-  execReturn(node) {
-    const value = node.value ? this.evaluate(node.value) : null
+  async execReturn(node) {
+    const value = node.value ? await this.evaluate(node.value) : null
     throw new ReturnSignal(value)
   }
 
-  execRaise(node) {
-    const value = this.evaluate(node.expression)
+  async execRaise(node) {
+    const value = await this.evaluate(node.expression)
     if (typeof value === 'string') {
       throw new NovaThrow(novaError('UserError', value, {
         file: this.fileName,
@@ -468,10 +482,10 @@ export class Interpreter {
     }))
   }
 
-  execAttempt(node) {
+  async execAttempt(node) {
     let returnSignal = null
     try {
-      this.executeBlock(node.body)
+      await this.executeBlock(node.body)
     } catch (e) {
       if (e instanceof NovaThrow) {
         const errData = e.errorData
@@ -489,7 +503,7 @@ export class Interpreter {
         const prevEnv = this.env
         this.env = rescueEnv
         try {
-          this.executeBlock(node.rescueBody)
+          await this.executeBlock(node.rescueBody)
         } finally {
           this.env = prevEnv
         }
@@ -500,7 +514,7 @@ export class Interpreter {
       }
     } finally {
       if (node.alwaysBody) {
-        this.executeBlock(node.alwaysBody)
+        await this.executeBlock(node.alwaysBody)
       }
     }
     if (returnSignal) {
@@ -508,12 +522,12 @@ export class Interpreter {
     }
   }
 
-  execUse(node) {
+  async execUse(node) {
     if (!this.moduleLoader) {
       throw this.error('FileError', "Cannot use modules without a module loader.", 'This program needs to be run through the module loader for multi-file support.', node.loc)
     }
 
-    const moduleEnv = this.moduleLoader.load(node.path, this.fileName)
+    const moduleEnv = await this.moduleLoader.load(node.path, this.fileName)
 
     if (node.alias) {
       const namespace = {
@@ -531,24 +545,27 @@ export class Interpreter {
     }
   }
 
-  evalCall(node) {
-    const callee = this.evaluate(node.callee)
-    const args = node.args.map(a => this.evaluate(a))
+  async evalCall(node) {
+    const callee = await this.evaluate(node.callee)
+    const args = []
+    for (const a of node.args) {
+      args.push(await this.evaluate(a))
+    }
 
     if (!callee || callee._type !== 'function') {
       throw this.error('TypeError', `'${toDisplay(callee)}' is not callable.`, null, node.loc)
     }
 
     if (callee._native) {
-      return callee._native(args)
+      return await callee._native(args)
     }
 
-    return this.callFunction(callee, args, node.loc)
+    return await this.callFunction(callee, args, node.loc)
   }
 
-  callFunction(fn, args, loc) {
+  async callFunction(fn, args, loc) {
     if (fn._native) {
-      return fn._native(args)
+      return await fn._native(args)
     }
 
     const required = fn.params.filter(p => p.default === null).length
@@ -572,7 +589,7 @@ export class Interpreter {
 
     for (let i = 0; i < fn.params.length; i++) {
       const param = fn.params[i]
-      const value = i < args.length ? args[i] : this.evaluate(param.default)
+      const value = i < args.length ? args[i] : await this.evaluate(param.default)
       if (param.type) {
         this.checkType(value, param.type, param.name, loc)
       }
@@ -593,7 +610,7 @@ export class Interpreter {
     let result = null
 
     try {
-      this.executeBlock(fn.body)
+      await this.executeBlock(fn.body)
     } catch (e) {
       if (e instanceof ReturnSignal) {
         result = e.value
@@ -618,7 +635,7 @@ export class Interpreter {
     return novaFunction(null, node.params, null, node.body, this.env)
   }
 
-  evalNew(node) {
+  async evalNew(node) {
     let klass
     try {
       klass = this.env.get(node.className)
@@ -634,12 +651,15 @@ export class Interpreter {
     }
 
     const instance = novaInstance(klass)
-    this.initFieldDefaults(instance, klass)
+    await this.initFieldDefaults(instance, klass)
 
     const setup = this.findMethod(klass, 'setup')
     if (setup) {
-      const args = node.args.map(a => this.evaluate(a))
-      this.callMethod(instance, setup, args, node.loc)
+      const args = []
+      for (const a of node.args) {
+        args.push(await this.evaluate(a))
+      }
+      await this.callMethod(instance, setup, args, node.loc)
     } else if (node.args.length > 0) {
       throw this.error('TypeError', `'${node.className}' has no 'setup' method but received ${node.args.length} argument(s).`, null, node.loc)
     }
@@ -669,7 +689,7 @@ export class Interpreter {
     return [...names].sort()
   }
 
-  callMethod(instance, method, args, loc) {
+  async callMethod(instance, method, args, loc) {
     const methodEnv = new Environment(method.closure)
     methodEnv.declare('my', instance, {})
 
@@ -677,7 +697,7 @@ export class Interpreter {
     this.currentDeclaringClass = method.declaringClass
     const bound = { ...method, closure: methodEnv }
     try {
-      return this.callFunction(bound, args, loc)
+      return await this.callFunction(bound, args, loc)
     } finally {
       this.currentDeclaringClass = prevDeclaringClass
     }
@@ -696,13 +716,13 @@ export class Interpreter {
     return null
   }
 
-  initFieldDefaults(instance, klass) {
+  async initFieldDefaults(instance, klass) {
     if (klass.superclass) {
-      this.initFieldDefaults(instance, klass.superclass)
+      await this.initFieldDefaults(instance, klass.superclass)
     }
     for (const field of klass.fields) {
       if (field.defaultValue !== null) {
-        instance.fields.set(field.name, this.evaluate(field.defaultValue))
+        instance.fields.set(field.name, await this.evaluate(field.defaultValue))
       } else if (!instance.fields.has(field.name)) {
         instance.fields.set(field.name, null)
       }
@@ -722,18 +742,18 @@ export class Interpreter {
     }
   }
 
-  evalBinary(node) {
+  async evalBinary(node) {
     if (node.operator === 'and') {
-      const left = this.evaluate(node.left)
-      return isTruthy(left) ? this.evaluate(node.right) : left
+      const left = await this.evaluate(node.left)
+      return isTruthy(left) ? await this.evaluate(node.right) : left
     }
     if (node.operator === 'or') {
-      const left = this.evaluate(node.left)
-      return isTruthy(left) ? left : this.evaluate(node.right)
+      const left = await this.evaluate(node.left)
+      return isTruthy(left) ? left : await this.evaluate(node.right)
     }
 
-    const left = this.evaluate(node.left)
-    const right = this.evaluate(node.right)
+    const left = await this.evaluate(node.left)
+    const right = await this.evaluate(node.right)
 
     switch (node.operator) {
       case '+': return this.add(left, right, node)
@@ -832,8 +852,8 @@ export class Interpreter {
     return false
   }
 
-  evalUnary(node) {
-    const operand = this.evaluate(node.operand)
+  async evalUnary(node) {
+    const operand = await this.evaluate(node.operand)
 
     switch (node.operator) {
       case '-':
@@ -857,29 +877,41 @@ export class Interpreter {
         }
         return this.readFile(operand, node.loc)
 
+      case 'ask':
+        if (typeof operand !== 'string') {
+          throw this.error('TypeError', `ask expects a text prompt, got ${typeName(operand)}.`, null, node.loc)
+        }
+        if (!this.onAsk) {
+          throw this.error('RuntimeError', "'ask' is not available in this environment.", null, node.loc)
+        }
+        return await this.onAsk(operand)
+
       default:
         throw this.error('RuntimeError', `Unknown unary operator '${node.operator}'.`, null, node.loc)
     }
   }
 
-  evalListLit(node) {
-    const elements = node.elements.map(e => this.evaluate(e))
+  async evalListLit(node) {
+    const elements = []
+    for (const e of node.elements) {
+      elements.push(await this.evaluate(e))
+    }
     return { _type: 'list', elements }
   }
 
-  evalMapLit(node) {
+  async evalMapLit(node) {
     const entries = new Map()
     for (const pair of node.pairs) {
-      const key = this.evaluate(pair.key)
-      const value = this.evaluate(pair.value)
+      const key = await this.evaluate(pair.key)
+      const value = await this.evaluate(pair.value)
       entries.set(key, value)
     }
     return { _type: 'map', entries }
   }
 
-  evalIndex(node) {
-    const obj = this.evaluate(node.object)
-    const idx = this.evaluate(node.index)
+  async evalIndex(node) {
+    const obj = await this.evaluate(node.object)
+    const idx = await this.evaluate(node.index)
 
     if (typeof obj === 'string') {
       if (typeof idx !== 'number' || !Number.isInteger(idx)) {
@@ -913,17 +945,17 @@ export class Interpreter {
     throw this.error('TypeError', `Cannot index into ${typeName(obj)}.`, null, node.loc)
   }
 
-  evalProperty(node) {
+  async evalProperty(node) {
     if (node.object.type === 'Ident' && node.object.name === 'parent') {
       return this.evalParentProperty(node)
     }
 
-    const obj = this.evaluate(node.object)
+    const obj = await this.evaluate(node.object)
 
     if (obj && obj._type === 'list') {
       const method = getListMethod(
         obj, node.name,
-        (fn, args, loc) => this.callFunction(fn, args, loc),
+        async (fn, args, loc) => await this.callFunction(fn, args, loc),
         (kind, msg, hint, loc) => this.error(kind, msg, hint, loc),
         node.loc
       )
@@ -1002,11 +1034,20 @@ export class Interpreter {
     return { ...method, closure: boundEnv }
   }
 
-  evalInterpolation(node) {
-    return node.parts.map(part => {
-      const val = this.evaluate(part)
-      return toDisplay(val, (inst) => this.callInstanceToText(inst))
-    }).join('')
+  async evalInterpolation(node) {
+    const parts = []
+    for (const part of node.parts) {
+      let val = await this.evaluate(part)
+      if (val && val._type === 'instance') {
+        const text = await this.callInstanceToText(val)
+        if (text !== undefined) {
+          parts.push(text)
+          continue
+        }
+      }
+      parts.push(toDisplay(val))
+    }
+    return parts.join('')
   }
 
   // --- File operations ---
