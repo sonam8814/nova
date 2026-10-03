@@ -1,8 +1,9 @@
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useEffect } from 'react'
 import Editor from '@monaco-editor/react'
 import { LANG_NAME } from '../lang/config.js'
 import { registerNovaLanguage } from '../editor/monarch.js'
 import { defineNightleafTheme, NIGHTLEAF_THEME } from '../editor/theme.js'
+import { createDiagnosticsProvider } from '../editor/diagnostics.js'
 
 let languageRegistered = false
 
@@ -16,11 +17,33 @@ function handleBeforeMount(monaco) {
 
 export default function CodeEditor({ value, onChange, readOnly = false }) {
   const editorRef = useRef(null)
+  const monacoRef = useRef(null)
+  const diagnosticsRef = useRef(null)
 
-  const handleMount = useCallback((editor) => {
+  const handleMount = useCallback((editor, monaco) => {
     editorRef.current = editor
+    monacoRef.current = monaco
     editor.focus()
+
+    const diag = createDiagnosticsProvider(monaco)
+    diag.attach(editor)
+    diagnosticsRef.current = diag
   }, [])
+
+  useEffect(() => {
+    return () => {
+      if (diagnosticsRef.current) {
+        diagnosticsRef.current.dispose()
+        diagnosticsRef.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (diagnosticsRef.current && editorRef.current) {
+      diagnosticsRef.current.updateModel(editorRef.current)
+    }
+  }, [value])
 
   const handleChange = useCallback((newValue) => {
     if (onChange) onChange(newValue)
