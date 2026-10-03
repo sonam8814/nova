@@ -149,6 +149,7 @@ export default function Shell({
             <CodeEditor
               value={files[activeFile] || ''}
               onChange={(val) => updateFileContent(activeFile, val)}
+              activeFile={activeFile}
             />
           </div>
 

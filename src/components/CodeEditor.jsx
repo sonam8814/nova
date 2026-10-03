@@ -4,6 +4,8 @@ import { LANG_NAME } from '../lang/config.js'
 import { registerNovaLanguage } from '../editor/monarch.js'
 import { defineNightleafTheme, NIGHTLEAF_THEME } from '../editor/theme.js'
 import { createDiagnosticsProvider } from '../editor/diagnostics.js'
+import { registerCompletionProvider } from '../editor/completion.js'
+import { registerHoverProvider } from '../editor/hover.js'
 
 let languageRegistered = false
 
@@ -15,10 +17,11 @@ function handleBeforeMount(monaco) {
   }
 }
 
-export default function CodeEditor({ value, onChange, readOnly = false }) {
+export default function CodeEditor({ value, onChange, activeFile, readOnly = false }) {
   const editorRef = useRef(null)
   const monacoRef = useRef(null)
   const diagnosticsRef = useRef(null)
+  const disposablesRef = useRef([])
 
   const handleMount = useCallback((editor, monaco) => {
     editorRef.current = editor
@@ -28,6 +31,9 @@ export default function CodeEditor({ value, onChange, readOnly = false }) {
     const diag = createDiagnosticsProvider(monaco)
     diag.attach(editor)
     diagnosticsRef.current = diag
+
+    disposablesRef.current.push(registerCompletionProvider(monaco))
+    disposablesRef.current.push(registerHoverProvider(monaco))
   }, [])
 
   useEffect(() => {
@@ -36,6 +42,10 @@ export default function CodeEditor({ value, onChange, readOnly = false }) {
         diagnosticsRef.current.dispose()
         diagnosticsRef.current = null
       }
+      for (const d of disposablesRef.current) {
+        d.dispose()
+      }
+      disposablesRef.current = []
     }
   }, [])
 
@@ -43,7 +53,7 @@ export default function CodeEditor({ value, onChange, readOnly = false }) {
     if (diagnosticsRef.current && editorRef.current) {
       diagnosticsRef.current.updateModel(editorRef.current)
     }
-  }, [value])
+  }, [activeFile])
 
   const handleChange = useCallback((newValue) => {
     if (onChange) onChange(newValue)
