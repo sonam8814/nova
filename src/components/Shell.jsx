@@ -5,6 +5,7 @@ import TabBar from './TabBar.jsx'
 import CodeEditor from './CodeEditor.jsx'
 import Terminal from './Terminal.jsx'
 import InputPanel from './InputPanel.jsx'
+import { useKeyboardShortcuts } from '../state/useKeyboardShortcuts.js'
 
 const MIN_SIDEBAR = 140
 const MAX_SIDEBAR = 400
@@ -29,9 +30,41 @@ export default function Shell({
 
   const [sidebarWidth, setSidebarWidth] = useState(220)
   const [outputFrac, setOutputFrac] = useState(0.3)
+  const [saveFlash, setSaveFlash] = useState(0)
 
   const shellRef = useRef(null)
   const centerRef = useRef(null)
+
+  const handleSave = useCallback(() => {
+    setSaveFlash(prev => prev + 1)
+  }, [])
+
+  const handleNewFile = useCallback(() => {
+    const base = 'untitled'
+    let name = base
+    let n = 1
+    const ext = '.nova'
+    while (files[name + ext]) {
+      name = `${base}${n}`
+      n++
+    }
+    createFile(name)
+  }, [files, createFile])
+
+  const handleCloseTab = useCallback(() => {
+    if (openFiles.length > 1) {
+      closeFile(activeFile)
+    }
+  }, [openFiles, activeFile, closeFile])
+
+  useKeyboardShortcuts({
+    onRun,
+    onStop: stop,
+    onNewFile: handleNewFile,
+    onCloseTab: handleCloseTab,
+    onSave: handleSave,
+    status,
+  })
 
   const handleSidebarDrag = useCallback((e) => {
     e.preventDefault()
@@ -96,7 +129,7 @@ export default function Shell({
         overflow: 'hidden',
       }}
     >
-      <TitleBar status={status} onRun={onRun} onStop={stop} />
+      <TitleBar status={status} onRun={onRun} onStop={stop} saveFlash={saveFlash} />
 
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         {/* Sidebar */}
