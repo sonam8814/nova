@@ -5,6 +5,7 @@ import TabBar from './TabBar.jsx'
 import CodeEditor from './CodeEditor.jsx'
 import Terminal from './Terminal.jsx'
 import InputPanel from './InputPanel.jsx'
+import StatusBar from './StatusBar.jsx'
 import { useKeyboardShortcuts } from '../state/useKeyboardShortcuts.js'
 
 const MIN_SIDEBAR = 140
@@ -31,6 +32,7 @@ export default function Shell({
   const [sidebarWidth, setSidebarWidth] = useState(220)
   const [outputFrac, setOutputFrac] = useState(0.3)
   const [saveFlash, setSaveFlash] = useState(0)
+  const [cursor, setCursor] = useState({ line: 1, column: 1, selected: 0 })
 
   const shellRef = useRef(null)
   const centerRef = useRef(null)
@@ -183,6 +185,7 @@ export default function Shell({
               value={files[activeFile] || ''}
               onChange={(val) => updateFileContent(activeFile, val)}
               activeFile={activeFile}
+              onCursorChange={setCursor}
             />
           </div>
 
@@ -214,6 +217,8 @@ export default function Shell({
           </div>
         </div>
       </div>
+
+      <StatusBar cursor={cursor} activeFile={activeFile} content={files[activeFile] || ''} />
     </div>
   )
 }

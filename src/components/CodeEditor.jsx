@@ -17,11 +17,13 @@ function handleBeforeMount(monaco) {
   }
 }
 
-export default function CodeEditor({ value, onChange, activeFile, readOnly = false }) {
+export default function CodeEditor({ value, onChange, activeFile, onCursorChange, readOnly = false }) {
   const editorRef = useRef(null)
   const monacoRef = useRef(null)
   const diagnosticsRef = useRef(null)
   const disposablesRef = useRef([])
+  const onCursorChangeRef = useRef(onCursorChange)
+  onCursorChangeRef.current = onCursorChange
 
   const handleMount = useCallback((editor, monaco) => {
     editorRef.current = editor
@@ -34,6 +36,25 @@ export default function CodeEditor({ value, onChange, activeFile, readOnly = fal
 
     disposablesRef.current.push(registerCompletionProvider(monaco))
     disposablesRef.current.push(registerHoverProvider(monaco))
+
+    const emitCursor = () => {
+      const pos = editor.getPosition()
+      const sel = editor.getSelection()
+      let selected = 0
+      if (sel && !sel.isEmpty()) {
+        const model = editor.getModel()
+        if (model) selected = model.getValueInRange(sel).length
+      }
+      onCursorChangeRef.current?.({
+        line: pos?.lineNumber ?? 1,
+        column: pos?.column ?? 1,
+        selected,
+      })
+    }
+
+    disposablesRef.current.push(editor.onDidChangeCursorPosition(emitCursor))
+    disposablesRef.current.push(editor.onDidChangeCursorSelection(emitCursor))
+    emitCursor()
   }, [])
 
   useEffect(() => {
