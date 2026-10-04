@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { FILE_EXT } from '../lang/config.js'
 import { loadProject, saveProject } from './storage.js'
+import { readHashProject } from './sharing.js'
 
 const DEFAULT_ENTRY = `main${FILE_EXT}`
 
@@ -41,6 +42,19 @@ export function useProject() {
   const saveTimerRef = useRef(null)
 
   useEffect(() => {
+    const hashFiles = readHashProject()
+    if (hashFiles) {
+      const entry = Object.keys(hashFiles)[0]
+      const allFiles = Object.keys(hashFiles)
+      setFiles(hashFiles)
+      setActiveFile(entry)
+      setOpenFiles(allFiles)
+      saveProject({ files: hashFiles, activeFile: entry, openFiles: allFiles })
+      history.replaceState(null, '', window.location.pathname)
+      setLoaded(true)
+      return
+    }
+
     loadProject().then((saved) => {
       if (saved && saved.files && Object.keys(saved.files).length > 0) {
         setFiles(saved.files)

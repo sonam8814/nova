@@ -1,9 +1,31 @@
 import { useState, useEffect, useRef } from 'react'
+import { getShareUrl, exportProjectJSON, importProjectJSON } from '../state/sharing.js'
 
 const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent)
 const MOD = IS_MAC ? '⌘' : 'Ctrl+'
 
-export default function TitleBar({ status, onRun, onStop, saveFlash }) {
+export default function TitleBar({ status, onRun, onStop, saveFlash, files, onImport }) {
+  const [shareMsg, setShareMsg] = useState(null)
+  const shareMsgTimer = useRef(null)
+
+  const handleShare = () => {
+    const url = getShareUrl(files)
+    navigator.clipboard.writeText(url).then(() => {
+      setShareMsg('Link copied!')
+      if (shareMsgTimer.current) clearTimeout(shareMsgTimer.current)
+      shareMsgTimer.current = setTimeout(() => setShareMsg(null), 2000)
+    })
+  }
+
+  const handleExport = () => {
+    exportProjectJSON(files)
+  }
+
+  const handleImport = async () => {
+    const imported = await importProjectJSON()
+    if (imported) onImport?.(imported)
+  }
+
   return (
     <div
       style={{
@@ -31,6 +53,22 @@ export default function TitleBar({ status, onRun, onStop, saveFlash }) {
       <SaveIndicator visible={saveFlash} />
 
       <div style={{ flex: 1 }} />
+
+      {shareMsg && (
+        <span style={{
+          fontFamily: "'IBM Plex Sans', sans-serif",
+          fontSize: '12px',
+          color: 'var(--sage)',
+        }}>
+          {shareMsg}
+        </span>
+      )}
+
+      <TitleButton label="Share" title="Copy share link" onClick={handleShare} />
+      <TitleButton label="Export" title="Download project as JSON" onClick={handleExport} />
+      <TitleButton label="Import" title="Load project from JSON" onClick={handleImport} />
+
+      <div style={{ width: '1px', height: '20px', backgroundColor: 'var(--rule)', margin: '0 4px' }} />
 
       <button
         onClick={onRun}
@@ -80,6 +118,36 @@ export default function TitleBar({ status, onRun, onStop, saveFlash }) {
         Stop
       </button>
     </div>
+  )
+}
+
+function TitleButton({ label, title, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      style={{
+        background: 'none',
+        border: '1px solid var(--rule)',
+        borderRadius: '3px',
+        padding: '3px 10px',
+        fontFamily: "'IBM Plex Sans', sans-serif",
+        fontSize: '12px',
+        color: 'var(--vellum-dim)',
+        cursor: 'pointer',
+        lineHeight: '18px',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.color = 'var(--vellum)'
+        e.currentTarget.style.borderColor = 'var(--vellum-dim)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.color = 'var(--vellum-dim)'
+        e.currentTarget.style.borderColor = 'var(--rule)'
+      }}
+    >
+      {label}
+    </button>
   )
 }
 

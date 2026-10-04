@@ -142,7 +142,14 @@ export default function Shell({
         overflow: 'hidden',
       }}
     >
-      <TitleBar status={status} onRun={onRun} onStop={stop} saveFlash={saveFlash} />
+      <TitleBar
+        status={status}
+        onRun={onRun}
+        onStop={stop}
+        saveFlash={saveFlash}
+        files={files}
+        onImport={loadNewProject}
+      />
 
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         {/* Sidebar */}
