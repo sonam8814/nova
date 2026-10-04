@@ -1,8 +1,17 @@
-import { useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect, useCallback, useState } from 'react'
 
-export default function Terminal({ output, status, elapsedMs }) {
+const ERROR_LOC_RE = /^(\w+) at (.+?) line (\d+), column (\d+)/
+
+function parseErrorLoc(text) {
+  const match = text.match(ERROR_LOC_RE)
+  if (!match) return null
+  return { file: match[2], line: parseInt(match[3], 10), column: parseInt(match[4], 10) }
+}
+
+export default function Terminal({ output, status, elapsedMs, onClear, onErrorClick }) {
   const containerRef = useRef(null)
   const userScrolledRef = useRef(false)
+  const [copied, setCopied] = useState(false)
 
   const handleScroll = useCallback(() => {
     const el = containerRef.current
@@ -17,7 +26,22 @@ export default function Terminal({ output, status, elapsedMs }) {
     el.scrollTop = el.scrollHeight
   }, [output])
 
+  const handleCopy = useCallback(() => {
+    const text = output.map(l => l.text).join('\n')
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1200)
+    })
+  }, [output])
+
+  const handleLineClick = useCallback((line) => {
+    if (line.stream !== 'err') return
+    const loc = parseErrorLoc(line.text)
+    if (loc) onErrorClick?.(loc)
+  }, [onErrorClick])
+
   const isEmpty = output.length === 0 && status === 'idle'
+  const hasOutput = output.length > 0
 
   return (
     <div
@@ -49,7 +73,25 @@ export default function Terminal({ output, status, elapsedMs }) {
         >
           Output
         </span>
-        <StatusLine status={status} elapsedMs={elapsedMs} />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <StatusLine status={status} elapsedMs={elapsedMs} />
+
+          {hasOutput && (
+            <>
+              <ToolButton
+                label={copied ? 'Copied' : 'Copy'}
+                onClick={handleCopy}
+                title="Copy all output"
+              />
+              <ToolButton
+                label="Clear"
+                onClick={onClear}
+                title="Clear output"
+              />
+            </>
+          )}
+        </div>
       </div>
 
       <div
@@ -70,21 +112,54 @@ export default function Terminal({ output, status, elapsedMs }) {
             Output appears here when you run.
           </span>
         ) : (
-          output.map((line, i) => (
-            <div
-              key={i}
-              style={{
-                color: line.stream === 'err' ? 'var(--halt)' : 'var(--vellum)',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-              }}
-            >
-              {line.text}
-            </div>
-          ))
+          output.map((line, i) => {
+            const isErr = line.stream === 'err'
+            const loc = isErr ? parseErrorLoc(line.text) : null
+            return (
+              <div
+                key={i}
+                onClick={() => handleLineClick(line)}
+                style={{
+                  color: isErr ? 'var(--halt)' : 'var(--vellum)',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  cursor: loc ? 'pointer' : 'default',
+                  borderRadius: loc ? '2px' : undefined,
+                }}
+                onMouseEnter={loc ? (e) => { e.currentTarget.style.backgroundColor = 'var(--ink-700)' } : undefined}
+                onMouseLeave={loc ? (e) => { e.currentTarget.style.backgroundColor = '' } : undefined}
+              >
+                {line.text}
+              </div>
+            )
+          })
         )}
       </div>
     </div>
+  )
+}
+
+function ToolButton({ label, onClick, title }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      style={{
+        background: 'none',
+        border: '1px solid var(--rule)',
+        borderRadius: '3px',
+        padding: '1px 8px',
+        fontFamily: "'IBM Plex Sans', sans-serif",
+        fontSize: '11px',
+        color: 'var(--vellum-dim)',
+        cursor: 'pointer',
+        lineHeight: '18px',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--vellum)' }}
+      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--vellum-dim)' }}
+    >
+      {label}
+    </button>
   )
 }
 

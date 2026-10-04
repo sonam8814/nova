@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from 'react'
+import { useRef, useCallback, useEffect, useImperativeHandle, forwardRef } from 'react'
 import Editor from '@monaco-editor/react'
 import { LANG_NAME } from '../lang/config.js'
 import { registerNovaLanguage } from '../editor/monarch.js'
@@ -17,13 +17,23 @@ function handleBeforeMount(monaco) {
   }
 }
 
-export default function CodeEditor({ value, onChange, activeFile, onCursorChange, readOnly = false }) {
+export default forwardRef(function CodeEditor({ value, onChange, activeFile, onCursorChange, readOnly = false }, ref) {
   const editorRef = useRef(null)
   const monacoRef = useRef(null)
   const diagnosticsRef = useRef(null)
   const disposablesRef = useRef([])
   const onCursorChangeRef = useRef(onCursorChange)
   onCursorChangeRef.current = onCursorChange
+
+  useImperativeHandle(ref, () => ({
+    jumpToLine(line, column = 1) {
+      const editor = editorRef.current
+      if (!editor) return
+      editor.revealLineInCenter(line)
+      editor.setPosition({ lineNumber: line, column })
+      editor.focus()
+    },
+  }), [])
 
   const handleMount = useCallback((editor, monaco) => {
     editorRef.current = editor
@@ -121,4 +131,4 @@ export default function CodeEditor({ value, onChange, activeFile, onCursorChange
       }}
     />
   )
-}
+})

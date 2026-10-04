@@ -36,6 +36,7 @@ export default function Shell({
 
   const shellRef = useRef(null)
   const centerRef = useRef(null)
+  const editorRef = useRef(null)
 
   const handleSave = useCallback(() => {
     setSaveFlash(prev => prev + 1)
@@ -58,6 +59,15 @@ export default function Shell({
       closeFile(activeFile)
     }
   }, [openFiles, activeFile, closeFile])
+
+  const handleErrorClick = useCallback((loc) => {
+    if (loc.file && files[loc.file] && loc.file !== activeFile) {
+      selectFile(loc.file)
+    }
+    setTimeout(() => {
+      editorRef.current?.jumpToLine(loc.line, loc.column)
+    }, 50)
+  }, [files, activeFile, selectFile])
 
   useKeyboardShortcuts({
     onRun,
@@ -182,6 +192,7 @@ export default function Shell({
           {/* Editor */}
           <div style={{ flex: editorFrac, minHeight: 0, position: 'relative' }}>
             <CodeEditor
+              ref={editorRef}
               value={files[activeFile] || ''}
               onChange={(val) => updateFileContent(activeFile, val)}
               activeFile={activeFile}
@@ -212,7 +223,13 @@ export default function Shell({
 
           {/* Output panel */}
           <div style={{ flex: outputFrac, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-            <Terminal output={output} status={status} elapsedMs={elapsedMs} />
+            <Terminal
+              output={output}
+              status={status}
+              elapsedMs={elapsedMs}
+              onClear={runner.clearOutput}
+              onErrorClick={handleErrorClick}
+            />
             <InputPanel visible={status === 'waiting'} onSubmit={sendInput} />
           </div>
         </div>
