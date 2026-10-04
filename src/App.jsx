@@ -1,11 +1,13 @@
 import { useCallback } from 'react'
 import { useRunner } from './state/useRunner.js'
 import { useProject } from './state/useProject.js'
+import { useSettings } from './state/useSettings.js'
 import Shell from './components/Shell.jsx'
 
 export default function App() {
   const project = useProject()
   const runner = useRunner()
+  const { settings, update: updateSetting } = useSettings()
 
   const handleRun = useCallback(() => {
     runner.run(project.files, project.activeFile)
@@ -16,6 +18,8 @@ export default function App() {
       project={project}
       runner={runner}
       onRun={handleRun}
+      settings={settings}
+      onUpdateSetting={updateSetting}
     />
   )
 }

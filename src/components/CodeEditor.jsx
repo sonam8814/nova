@@ -17,7 +17,7 @@ function handleBeforeMount(monaco) {
   }
 }
 
-export default forwardRef(function CodeEditor({ value, onChange, activeFile, onCursorChange, readOnly = false }, ref) {
+export default forwardRef(function CodeEditor({ value, onChange, activeFile, onCursorChange, editorSettings, readOnly = false }, ref) {
   const editorRef = useRef(null)
   const monacoRef = useRef(null)
   const diagnosticsRef = useRef(null)
@@ -100,9 +100,9 @@ export default forwardRef(function CodeEditor({ value, onChange, activeFile, onC
       onMount={handleMount}
       options={{
         fontFamily: "'IBM Plex Mono', monospace",
-        fontSize: 14,
-        lineHeight: 23,
-        minimap: { enabled: false },
+        fontSize: editorSettings?.fontSize ?? 14,
+        lineHeight: Math.round((editorSettings?.fontSize ?? 14) * 1.65),
+        minimap: { enabled: editorSettings?.minimap ?? false },
         renderWhitespace: 'none',
         bracketPairColorization: { enabled: false },
         cursorBlinking: 'solid',
@@ -113,9 +113,9 @@ export default forwardRef(function CodeEditor({ value, onChange, activeFile, onC
         folding: false,
         lineNumbersMinChars: 3,
         automaticLayout: true,
-        tabSize: 2,
+        tabSize: editorSettings?.tabSize ?? 2,
         insertSpaces: true,
-        wordWrap: 'off',
+        wordWrap: editorSettings?.wordWrap ? 'on' : 'off',
         readOnly,
         overviewRulerLanes: 0,
         hideCursorInOverviewRuler: true,

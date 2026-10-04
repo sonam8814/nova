@@ -1,4 +1,4 @@
-export default function StatusBar({ cursor, activeFile, content }) {
+export default function StatusBar({ cursor, activeFile, content, tabSize, onToggleSettings }) {
   const lineCount = content ? content.split('\n').length : 0
   const wordCount = content ? content.split(/\s+/).filter(Boolean).length : 0
 
@@ -33,8 +33,25 @@ export default function StatusBar({ cursor, activeFile, content }) {
       <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
         <span>{wordCount} words</span>
         <span>{lineCount} lines</span>
-        <span>Spaces: 2</span>
+        <span>Spaces: {tabSize}</span>
         <span style={{ color: 'var(--vellum-mid)' }}>Nova</span>
+        <button
+          onClick={onToggleSettings}
+          title="Settings"
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--vellum-dim)',
+            cursor: 'pointer',
+            fontSize: '13px',
+            padding: '0',
+            lineHeight: 1,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--vellum)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--vellum-dim)' }}
+        >
+          &#9881;
+        </button>
       </div>
     </div>
   )

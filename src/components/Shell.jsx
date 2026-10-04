@@ -6,6 +6,7 @@ import CodeEditor from './CodeEditor.jsx'
 import Terminal from './Terminal.jsx'
 import InputPanel from './InputPanel.jsx'
 import StatusBar from './StatusBar.jsx'
+import SettingsPanel from './SettingsPanel.jsx'
 import { useKeyboardShortcuts } from '../state/useKeyboardShortcuts.js'
 
 const MIN_SIDEBAR = 140
@@ -17,6 +18,8 @@ export default function Shell({
   project,
   runner,
   onRun,
+  settings,
+  onUpdateSetting,
 }) {
   const {
     files, activeFile, openFiles, loaded,
@@ -34,6 +37,7 @@ export default function Shell({
   const [outputFrac, setOutputFrac] = useState(0.3)
   const [saveFlash, setSaveFlash] = useState(0)
   const [cursor, setCursor] = useState({ line: 1, column: 1, selected: 0 })
+  const [showSettings, setShowSettings] = useState(false)
 
   const shellRef = useRef(null)
   const centerRef = useRef(null)
@@ -206,6 +210,7 @@ export default function Shell({
               onChange={(val) => updateFileContent(activeFile, val)}
               activeFile={activeFile}
               onCursorChange={setCursor}
+              editorSettings={settings}
             />
           </div>
 
@@ -244,7 +249,22 @@ export default function Shell({
         </div>
       </div>
 
-      <StatusBar cursor={cursor} activeFile={activeFile} content={files[activeFile] || ''} />
+      <div style={{ position: 'relative' }}>
+        <StatusBar
+          cursor={cursor}
+          activeFile={activeFile}
+          content={files[activeFile] || ''}
+          tabSize={settings.tabSize}
+          onToggleSettings={() => setShowSettings(prev => !prev)}
+        />
+        {showSettings && (
+          <SettingsPanel
+            settings={settings}
+            onUpdate={onUpdateSetting}
+            onClose={() => setShowSettings(false)}
+          />
+        )}
+      </div>
     </div>
   )
 }
