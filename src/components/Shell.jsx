@@ -22,6 +22,7 @@ export default function Shell({
     files, activeFile, openFiles, loaded,
     updateFileContent, selectFile, closeFile,
     createFile, deleteFile, renameFile,
+    loadNewProject,
   } = project
 
   const {
@@ -153,6 +154,7 @@ export default function Shell({
             onCreate={createFile}
             onDelete={deleteFile}
             onRename={renameFile}
+            onLoadExample={loadNewProject}
           />
         </div>
 

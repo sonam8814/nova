@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { FILE_EXT } from '../lang/config.js'
+import { EXAMPLES } from '../state/examples.js'
 
 export default function FileTree({
   files,
@@ -8,13 +9,27 @@ export default function FileTree({
   onCreate,
   onDelete,
   onRename,
+  onLoadExample,
 }) {
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
   const [renamingFile, setRenamingFile] = useState(null)
   const [renameValue, setRenameValue] = useState('')
+  const [showExamples, setShowExamples] = useState(false)
+  const menuRef = useRef(null)
 
   const fileNames = Object.keys(files).sort()
+
+  useEffect(() => {
+    if (!showExamples) return
+    const handleClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setShowExamples(false)
+      }
+    }
+    document.addEventListener('pointerdown', handleClick)
+    return () => document.removeEventListener('pointerdown', handleClick)
+  }, [showExamples])
 
   const handleCreate = (e) => {
     e.preventDefault()
@@ -43,6 +58,11 @@ export default function FileTree({
   const startRename = (fileName) => {
     setRenamingFile(fileName)
     setRenameValue(fileName.replace(FILE_EXT, ''))
+  }
+
+  const handleExampleClick = (example) => {
+    setShowExamples(false)
+    onLoadExample?.(example.files)
   }
 
   return (
@@ -75,21 +95,80 @@ export default function FileTree({
         >
           Files
         </span>
-        <button
-          onClick={() => { setCreating(true); setNewName('') }}
-          title="New file"
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--vellum-mid)',
-            cursor: 'pointer',
-            fontSize: '16px',
-            lineHeight: 1,
-            padding: '0 2px',
-          }}
-        >
-          +
-        </button>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <div style={{ position: 'relative' }} ref={menuRef}>
+            <button
+              onClick={() => setShowExamples(prev => !prev)}
+              title="Load example"
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--vellum-mid)',
+                cursor: 'pointer',
+                fontSize: '11px',
+                lineHeight: 1,
+                padding: '0 2px',
+                fontFamily: "'IBM Plex Sans', sans-serif",
+              }}
+            >
+              Examples
+            </button>
+            {showExamples && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  marginTop: '4px',
+                  backgroundColor: 'var(--ink-700)',
+                  border: '1px solid var(--rule)',
+                  borderRadius: '4px',
+                  minWidth: '180px',
+                  zIndex: 100,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+                  overflow: 'hidden',
+                }}
+              >
+                {EXAMPLES.map((ex, i) => (
+                  <div
+                    key={i}
+                    onClick={() => handleExampleClick(ex)}
+                    style={{
+                      padding: '6px 10px',
+                      cursor: 'pointer',
+                      fontFamily: "'IBM Plex Sans', sans-serif",
+                      fontSize: '12px',
+                      color: 'var(--vellum)',
+                      borderBottom: i < EXAMPLES.length - 1 ? '1px solid var(--rule-soft)' : 'none',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--ink-800)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '' }}
+                  >
+                    <div style={{ fontWeight: 500 }}>{ex.name}</div>
+                    <div style={{ color: 'var(--vellum-dim)', fontSize: '11px', marginTop: '1px' }}>
+                      {ex.description}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => { setCreating(true); setNewName('') }}
+            title="New file"
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--vellum-mid)',
+              cursor: 'pointer',
+              fontSize: '16px',
+              lineHeight: 1,
+              padding: '0 2px',
+            }}
+          >
+            +
+          </button>
+        </div>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
