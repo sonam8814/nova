@@ -180,6 +180,10 @@ function StatusLine({ status, elapsedMs }) {
       text = 'Waiting for input…'
       color = 'var(--gold)'
       break
+    case 'paused':
+      text = 'Paused'
+      color = 'var(--mark)'
+      break
     case 'idle':
     default:
       return null

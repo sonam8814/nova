@@ -72,10 +72,10 @@ export default function TitleBar({ status, onRun, onStop, saveFlash, files, onIm
 
       {status === 'paused' && (
         <>
-          <TitleButton label="Continue" title="Continue (F5)" onClick={onContinue} />
-          <TitleButton label="Step over" title="Step over (F10)" onClick={onStepOver} />
-          <TitleButton label="Step in" title="Step in (F11)" onClick={onStepIn} />
-          <TitleButton label="Step out" title="Step out (Shift+F11)" onClick={onStepOut} />
+          <DebugButton label="Continue" title="Continue (F5)" onClick={onContinue} accent />
+          <DebugButton label="Step over" title="Step over (F10)" onClick={onStepOver} />
+          <DebugButton label="Step in" title="Step in (F11)" onClick={onStepIn} />
+          <DebugButton label="Step out" title="Step out (Shift+F11)" onClick={onStepOut} />
           <div style={{ width: '1px', height: '20px', backgroundColor: 'var(--rule)', margin: '0 4px' }} />
         </>
       )}
@@ -106,7 +106,7 @@ export default function TitleBar({ status, onRun, onStop, saveFlash, files, onIm
 
       <button
         onClick={onStop}
-        disabled={status !== 'running' && status !== 'waiting'}
+        disabled={status !== 'running' && status !== 'waiting' && status !== 'paused'}
         title={`Stop (${MOD}.)`}
         style={{
           display: 'flex',
@@ -120,14 +120,47 @@ export default function TitleBar({ status, onRun, onStop, saveFlash, files, onIm
           fontFamily: "'IBM Plex Sans', sans-serif",
           fontSize: '13px',
           fontWeight: 500,
-          cursor: (status !== 'running' && status !== 'waiting') ? 'default' : 'pointer',
-          opacity: (status !== 'running' && status !== 'waiting') ? 0.5 : 1,
+          cursor: (status !== 'running' && status !== 'waiting' && status !== 'paused') ? 'default' : 'pointer',
+          opacity: (status !== 'running' && status !== 'waiting' && status !== 'paused') ? 0.5 : 1,
         }}
       >
         <span style={{ fontSize: '10px' }}>&#9632;</span>
         Stop
       </button>
     </div>
+  )
+}
+
+function DebugButton({ label, title, onClick, accent }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      style={{
+        background: accent ? 'var(--mark)' : 'none',
+        border: accent ? 'none' : '1px solid var(--mark)',
+        borderRadius: '3px',
+        padding: '3px 10px',
+        fontFamily: "'IBM Plex Sans', sans-serif",
+        fontSize: '12px',
+        color: accent ? 'var(--ink-900)' : 'var(--mark)',
+        cursor: 'pointer',
+        lineHeight: '18px',
+        fontWeight: accent ? 500 : 400,
+      }}
+      onMouseEnter={(e) => {
+        if (!accent) {
+          e.currentTarget.style.backgroundColor = 'rgba(210, 162, 76, 0.15)'
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!accent) {
+          e.currentTarget.style.backgroundColor = ''
+        }
+      }}
+    >
+      {label}
+    </button>
   )
 }
 

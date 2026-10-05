@@ -33,7 +33,7 @@ export function useKeyboardShortcuts({
 
     if (mod && e.key === '.') {
       e.preventDefault()
-      if (status === 'running' || status === 'waiting') onStop?.()
+      if (status === 'running' || status === 'waiting' || status === 'paused') onStop?.()
       return
     }
 

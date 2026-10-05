@@ -7,10 +7,13 @@ import Terminal from './Terminal.jsx'
 import InputPanel from './InputPanel.jsx'
 import StatusBar from './StatusBar.jsx'
 import SettingsPanel from './SettingsPanel.jsx'
+import DebugPanel from './DebugPanel.jsx'
 import { useKeyboardShortcuts } from '../state/useKeyboardShortcuts.js'
 
 const MIN_SIDEBAR = 140
 const MAX_SIDEBAR = 400
+const MIN_DEBUG_RAIL = 180
+const MAX_DEBUG_RAIL = 450
 const MIN_OUTPUT_FRAC = 0.15
 const MAX_OUTPUT_FRAC = 0.7
 
@@ -36,6 +39,7 @@ export default function Shell({
   } = runner
 
   const [sidebarWidth, setSidebarWidth] = useState(220)
+  const [debugRailWidth, setDebugRailWidth] = useState(260)
   const [outputFrac, setOutputFrac] = useState(0.3)
   const [saveFlash, setSaveFlash] = useState(0)
   const [cursor, setCursor] = useState({ line: 1, column: 1, selected: 0 })
@@ -164,6 +168,39 @@ export default function Shell({
     document.addEventListener('pointerup', onUp)
   }, [])
 
+  const handleDebugRailDrag = useCallback((e) => {
+    e.preventDefault()
+    const startX = e.clientX
+    const startWidth = debugRailWidth
+
+    const onMove = (ev) => {
+      const delta = startX - ev.clientX
+      const next = Math.max(MIN_DEBUG_RAIL, Math.min(MAX_DEBUG_RAIL, startWidth + delta))
+      setDebugRailWidth(next)
+    }
+    const onUp = () => {
+      document.removeEventListener('pointermove', onMove)
+      document.removeEventListener('pointerup', onUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    document.addEventListener('pointermove', onMove)
+    document.addEventListener('pointerup', onUp)
+  }, [debugRailWidth])
+
+  const handleFrameClick = useCallback((loc) => {
+    if (loc.file && files[loc.file] && loc.file !== activeFile) {
+      selectFile(loc.file)
+    }
+    if (loc.line) {
+      setTimeout(() => {
+        editorRef.current?.jumpToLine(loc.line)
+      }, 50)
+    }
+  }, [files, activeFile, selectFile])
+
   if (!loaded) return null
 
   const editorFrac = 1 - outputFrac
@@ -287,6 +324,37 @@ export default function Shell({
             <InputPanel visible={status === 'waiting'} onSubmit={sendInput} />
           </div>
         </div>
+
+        {/* Debug rail — visible when paused */}
+        {debugState && (
+          <>
+            <div
+              onPointerDown={handleDebugRailDrag}
+              style={{
+                width: '1px',
+                backgroundColor: 'var(--rule)',
+                cursor: 'col-resize',
+                flexShrink: 0,
+                position: 'relative',
+              }}
+            >
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                left: '-3px',
+                width: '7px',
+                cursor: 'col-resize',
+              }} />
+            </div>
+            <div style={{ width: debugRailWidth, flexShrink: 0, minHeight: 0 }}>
+              <DebugPanel
+                debugState={debugState}
+                onFrameClick={handleFrameClick}
+              />
+            </div>
+          </>
+        )}
       </div>
 
       <div style={{ position: 'relative' }}>
