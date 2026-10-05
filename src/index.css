@@ -48,6 +48,44 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes nova-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.nova-fade-panel {
+  animation: nova-fade-in 240ms ease-out both;
+}
+
+.nova-fade-panel:nth-child(1) { animation-delay: 0ms; }
+.nova-fade-panel:nth-child(2) { animation-delay: 40ms; }
+.nova-fade-panel:nth-child(3) { animation-delay: 80ms; }
+.nova-fade-panel:nth-child(4) { animation-delay: 120ms; }
+
 .nova-breakpoint-glyph {
   background-color: var(--halt);
   border-radius: 50%;

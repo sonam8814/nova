@@ -100,6 +100,7 @@ export default function FileTree({
             <button
               onClick={() => setShowExamples(prev => !prev)}
               title="Load example"
+              aria-label="Load example program"
               style={{
                 background: 'none',
                 border: 'none',
@@ -156,6 +157,7 @@ export default function FileTree({
           <button
             onClick={() => { setCreating(true); setNewName('') }}
             title="New file"
+            aria-label="Create new file"
             style={{
               background: 'none',
               border: 'none',
@@ -228,6 +230,7 @@ export default function FileTree({
                       onDelete(name)
                     }}
                     title="Delete file"
+                    aria-label={`Delete ${name}`}
                     style={{
                       background: 'none',
                       border: 'none',

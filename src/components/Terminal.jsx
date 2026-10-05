@@ -97,6 +97,9 @@ export default function Terminal({ output, status, elapsedMs, onClear, onErrorCl
       <div
         ref={containerRef}
         onScroll={handleScroll}
+        role="log"
+        aria-live="polite"
+        aria-label="Program output"
         style={{
           flex: 1,
           overflowY: 'auto',

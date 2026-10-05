@@ -8,6 +8,7 @@ import InputPanel from './InputPanel.jsx'
 import StatusBar from './StatusBar.jsx'
 import SettingsPanel from './SettingsPanel.jsx'
 import DebugPanel from './DebugPanel.jsx'
+import FileSwitcher from './FileSwitcher.jsx'
 import { useKeyboardShortcuts } from '../state/useKeyboardShortcuts.js'
 
 const MIN_SIDEBAR = 140
@@ -45,6 +46,7 @@ export default function Shell({
   const [cursor, setCursor] = useState({ line: 1, column: 1, selected: 0 })
   const [showSettings, setShowSettings] = useState(false)
   const [breakpoints, setBreakpointsState] = useState([])
+  const [showFileSwitcher, setShowFileSwitcher] = useState(false)
 
   const shellRef = useRef(null)
   const centerRef = useRef(null)
@@ -106,6 +108,10 @@ export default function Shell({
     })
   }, [activeFile, setBreakpoints])
 
+  const handleFileSwitcher = useCallback(() => {
+    setShowFileSwitcher(prev => !prev)
+  }, [])
+
   useKeyboardShortcuts({
     onRun,
     onStop: stop,
@@ -118,6 +124,7 @@ export default function Shell({
     onStepOut: stepOut,
     onContinue: continueExec,
     onToggleBreakpoint: handleToggleBreakpoint,
+    onFileSwitcher: handleFileSwitcher,
   })
 
   const handleSidebarDrag = useCallback((e) => {
@@ -231,7 +238,7 @@ export default function Shell({
 
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         {/* Sidebar */}
-        <div style={{ width: sidebarWidth, flexShrink: 0, minHeight: 0 }}>
+        <div className="nova-fade-panel" style={{ width: sidebarWidth, flexShrink: 0, minHeight: 0 }}>
           <FileTree
             files={files}
             activeFile={activeFile}
@@ -267,6 +274,7 @@ export default function Shell({
         {/* Center: editor + output */}
         <div
           ref={centerRef}
+          className="nova-fade-panel"
           style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}
         >
           <TabBar
@@ -356,6 +364,15 @@ export default function Shell({
           </>
         )}
       </div>
+
+      {showFileSwitcher && (
+        <FileSwitcher
+          files={files}
+          activeFile={activeFile}
+          onSelect={selectFile}
+          onClose={() => setShowFileSwitcher(false)}
+        />
+      )}
 
       <div style={{ position: 'relative' }}>
         <StatusBar

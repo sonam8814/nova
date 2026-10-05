@@ -83,6 +83,7 @@ export default function TitleBar({ status, onRun, onStop, saveFlash, files, onIm
       <button
         onClick={onRun}
         disabled={status === 'running'}
+        aria-label="Run program"
         title={`Run (${MOD}Enter)`}
         style={{
           display: 'flex',
@@ -107,6 +108,7 @@ export default function TitleBar({ status, onRun, onStop, saveFlash, files, onIm
       <button
         onClick={onStop}
         disabled={status !== 'running' && status !== 'waiting' && status !== 'paused'}
+        aria-label="Stop program"
         title={`Stop (${MOD}.)`}
         style={{
           display: 'flex',

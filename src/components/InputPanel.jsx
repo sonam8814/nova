@@ -36,6 +36,7 @@ export default function InputPanel({ visible, onSubmit }) {
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="Type your answer…"
+        aria-label="Program input"
         style={{
           flex: 1,
           padding: '6px 10px',

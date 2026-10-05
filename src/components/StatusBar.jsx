@@ -38,6 +38,7 @@ export default function StatusBar({ cursor, activeFile, content, tabSize, onTogg
         <button
           onClick={onToggleSettings}
           title="Settings"
+          aria-label="Toggle settings panel"
           style={{
             background: 'none',
             border: 'none',
