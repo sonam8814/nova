@@ -1,6 +1,9 @@
 import { useEffect, useCallback } from 'react'
 
-export function useKeyboardShortcuts({ onRun, onStop, onNewFile, onCloseTab, onSave, status }) {
+export function useKeyboardShortcuts({
+  onRun, onStop, onNewFile, onCloseTab, onSave, status,
+  onStepOver, onStepIn, onStepOut, onContinue, onToggleBreakpoint,
+}) {
   const handler = useCallback((e) => {
     const mod = e.metaKey || e.ctrlKey
 
@@ -33,7 +36,38 @@ export function useKeyboardShortcuts({ onRun, onStop, onNewFile, onCloseTab, onS
       if (status === 'running' || status === 'waiting') onStop?.()
       return
     }
-  }, [onRun, onStop, onNewFile, onCloseTab, onSave, status])
+
+    if (mod && e.key === 'b') {
+      e.preventDefault()
+      onToggleBreakpoint?.()
+      return
+    }
+
+    if (e.key === 'F10' && !mod) {
+      e.preventDefault()
+      if (status === 'paused') onStepOver?.()
+      return
+    }
+
+    if (e.key === 'F11' && !mod && !e.shiftKey) {
+      e.preventDefault()
+      if (status === 'paused') onStepIn?.()
+      return
+    }
+
+    if (e.key === 'F11' && e.shiftKey && !mod) {
+      e.preventDefault()
+      if (status === 'paused') onStepOut?.()
+      return
+    }
+
+    if (e.key === 'F5' && !mod) {
+      e.preventDefault()
+      if (status === 'paused') onContinue?.()
+      return
+    }
+  }, [onRun, onStop, onNewFile, onCloseTab, onSave, status,
+      onStepOver, onStepIn, onStepOut, onContinue, onToggleBreakpoint])
 
   useEffect(() => {
     window.addEventListener('keydown', handler)

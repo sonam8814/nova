@@ -95,3 +95,53 @@ export function novaInstance(klass) {
     fields: new Map(),
   }
 }
+
+export function serializeScopes(env, maxDepth = 3) {
+  const scopes = []
+  let current = env
+  let depth = 0
+  while (current && depth < 10) {
+    const vars = {}
+    for (const [name, value] of current.values) {
+      if (name.startsWith('__')) continue
+      vars[name] = serializeValue(value, maxDepth)
+    }
+    if (Object.keys(vars).length > 0) {
+      scopes.push({ name: depth === 0 ? 'local' : `scope ${depth}`, vars })
+    }
+    current = current.parent
+    depth++
+  }
+  return scopes
+}
+
+function serializeValue(v, depth) {
+  if (depth <= 0) return { type: typeName(v), display: '...' }
+  if (v === null || v === undefined) return { type: 'nothing', display: 'nothing' }
+  if (typeof v === 'number') return { type: 'number', display: String(v) }
+  if (typeof v === 'string') return { type: 'text', display: v.length > 100 ? `"${v.slice(0, 100)}..."` : `"${v}"` }
+  if (typeof v === 'boolean') return { type: 'truth', display: v ? 'yes' : 'no' }
+  if (v._type === 'list') {
+    if (v.elements.length > 20) {
+      return { type: 'list', display: `[${v.elements.length} items]` }
+    }
+    const items = v.elements.map(el => serializeValue(el, depth - 1).display)
+    return { type: 'list', display: `[${items.join(', ')}]` }
+  }
+  if (v._type === 'map') {
+    if (v.entries.size > 20) {
+      return { type: 'map', display: `{${v.entries.size} entries}` }
+    }
+    const pairs = []
+    for (const [k, val] of v.entries) {
+      const key = typeof k === 'string' ? `"${k}"` : String(k)
+      pairs.push(`${key}: ${serializeValue(val, depth - 1).display}`)
+    }
+    return { type: 'map', display: `{${pairs.join(', ')}}` }
+  }
+  if (v._type === 'function') return { type: 'action', display: `<action ${v.name || 'anonymous'}>` }
+  if (v._type === 'instance') return { type: v.className, display: `<${v.className}>` }
+  if (v._type === 'class') return { type: 'class', display: `<class ${v.name}>` }
+  if (v._type === 'namespace') return { type: 'namespace', display: `<module ${v.name}>` }
+  return { type: 'unknown', display: String(v) }
+}

@@ -6,11 +6,12 @@ import { FILE_EXT } from './config.js'
 import { novaError, NovaThrow } from './errors.js'
 
 export class ModuleLoader {
-  constructor(sources, { output, onAsk, fileSystem } = {}) {
+  constructor(sources, { output, onAsk, fileSystem, debugHook } = {}) {
     this.sources = sources
     this.output = output || (() => {})
     this.onAsk = onAsk || null
     this.fileSystem = fileSystem || null
+    this.debugHook = debugHook || null
     this.cache = new Map()
     this.loading = new Set()
   }
@@ -62,6 +63,7 @@ export class ModuleLoader {
       output: this.output,
       onAsk: this.onAsk,
       fileName: path,
+      debugHook: this.debugHook,
     })
 
     interp.moduleLoader = this

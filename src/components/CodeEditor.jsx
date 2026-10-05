@@ -17,12 +17,17 @@ function handleBeforeMount(monaco) {
   }
 }
 
-export default forwardRef(function CodeEditor({ value, onChange, activeFile, onCursorChange, editorSettings, readOnly = false }, ref) {
+export default forwardRef(function CodeEditor({
+  value, onChange, activeFile, onCursorChange, editorSettings, readOnly = false,
+  breakpoints = [], onBreakpointToggle, pausedLine,
+}, ref) {
   const editorRef = useRef(null)
   const monacoRef = useRef(null)
   const diagnosticsRef = useRef(null)
   const disposablesRef = useRef([])
   const onCursorChangeRef = useRef(onCursorChange)
+  const breakpointDecorationsRef = useRef([])
+  const pausedDecorationsRef = useRef([])
   onCursorChangeRef.current = onCursorChange
 
   useImperativeHandle(ref, () => ({
@@ -65,7 +70,14 @@ export default forwardRef(function CodeEditor({ value, onChange, activeFile, onC
     disposablesRef.current.push(editor.onDidChangeCursorPosition(emitCursor))
     disposablesRef.current.push(editor.onDidChangeCursorSelection(emitCursor))
     emitCursor()
-  }, [])
+
+    editor.onMouseDown((e) => {
+      if (e.target.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) {
+        const line = e.target.position.lineNumber
+        onBreakpointToggle?.(line)
+      }
+    })
+  }, [onBreakpointToggle])
 
   useEffect(() => {
     return () => {
@@ -85,6 +97,51 @@ export default forwardRef(function CodeEditor({ value, onChange, activeFile, onC
       diagnosticsRef.current.updateModel(editorRef.current)
     }
   }, [activeFile])
+
+  useEffect(() => {
+    const editor = editorRef.current
+    const monaco = monacoRef.current
+    if (!editor || !monaco) return
+
+    const decorations = breakpoints.map(line => ({
+      range: new monaco.Range(line, 1, line, 1),
+      options: {
+        glyphMarginClassName: 'nova-breakpoint-glyph',
+        glyphMarginHoverMessage: { value: 'Breakpoint' },
+      },
+    }))
+
+    breakpointDecorationsRef.current = editor.deltaDecorations(
+      breakpointDecorationsRef.current,
+      decorations,
+    )
+  }, [breakpoints])
+
+  useEffect(() => {
+    const editor = editorRef.current
+    const monaco = monacoRef.current
+    if (!editor || !monaco) return
+
+    const decorations = pausedLine
+      ? [{
+          range: new monaco.Range(pausedLine, 1, pausedLine, 1),
+          options: {
+            isWholeLine: true,
+            className: 'nova-paused-line',
+            glyphMarginClassName: 'nova-paused-glyph',
+          },
+        }]
+      : []
+
+    pausedDecorationsRef.current = editor.deltaDecorations(
+      pausedDecorationsRef.current,
+      decorations,
+    )
+
+    if (pausedLine) {
+      editor.revealLineInCenter(pausedLine)
+    }
+  }, [pausedLine])
 
   const handleChange = useCallback((newValue) => {
     if (onChange) onChange(newValue)

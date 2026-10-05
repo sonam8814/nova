@@ -5,10 +5,12 @@ export function useRunner() {
   const [output, setOutput] = useState([])
   const [error, setError] = useState(null)
   const [elapsedMs, setElapsedMs] = useState(null)
+  const [debugState, setDebugState] = useState(null)
 
   const workerRef = useRef(null)
   const bufferRef = useRef([])
   const rafRef = useRef(null)
+  const breakpointsRef = useRef([])
 
   const flushBuffer = useCallback(() => {
     if (rafRef.current != null) {
@@ -49,10 +51,21 @@ export function useRunner() {
         case 'done':
           flushBuffer()
           setElapsedMs(msg.ms)
+          setDebugState(null)
           setStatus('done')
           break
         case 'needInput':
           setStatus('waiting')
+          break
+        case 'paused':
+          flushBuffer()
+          setDebugState({
+            line: msg.line,
+            file: msg.file,
+            scopes: msg.scopes,
+            callStack: msg.callStack,
+          })
+          setStatus('paused')
           break
       }
     }
@@ -60,6 +73,7 @@ export function useRunner() {
     worker.onerror = (e) => {
       e.preventDefault()
       setError({ kind: 'InternalError', message: e.message || 'Worker crashed.' })
+      setDebugState(null)
       setStatus('done')
     }
 
@@ -93,11 +107,19 @@ export function useRunner() {
     setOutput([])
     setError(null)
     setElapsedMs(null)
+    setDebugState(null)
     setStatus('running')
 
     const worker = createWorker()
     workerRef.current = worker
-    worker.postMessage({ type: 'run', files, entry })
+
+    const bps = breakpointsRef.current
+    worker.postMessage({
+      type: 'run',
+      files,
+      entry,
+      breakpoints: bps.length > 0 ? bps : null,
+    })
   }, [createWorker])
 
   const stop = useCallback(() => {
@@ -114,6 +136,7 @@ export function useRunner() {
 
     flushBuffer()
     setOutput(prev => prev.concat({ text: 'Program stopped.', stream: 'err' }))
+    setDebugState(null)
     setStatus('idle')
     setElapsedMs(null)
   }, [flushBuffer])
@@ -132,14 +155,55 @@ export function useRunner() {
     bufferRef.current = []
   }, [])
 
+  const stepIn = useCallback(() => {
+    if (workerRef.current && status === 'paused') {
+      workerRef.current.postMessage({ type: 'step', mode: 'in' })
+      setStatus('running')
+    }
+  }, [status])
+
+  const stepOver = useCallback(() => {
+    if (workerRef.current && status === 'paused') {
+      workerRef.current.postMessage({ type: 'step', mode: 'over' })
+      setStatus('running')
+    }
+  }, [status])
+
+  const stepOut = useCallback(() => {
+    if (workerRef.current && status === 'paused') {
+      workerRef.current.postMessage({ type: 'step', mode: 'out' })
+      setStatus('running')
+    }
+  }, [status])
+
+  const continueExec = useCallback(() => {
+    if (workerRef.current && status === 'paused') {
+      workerRef.current.postMessage({ type: 'step', mode: 'continue' })
+      setStatus('running')
+    }
+  }, [status])
+
+  const setBreakpoints = useCallback((bps) => {
+    breakpointsRef.current = bps
+    if (workerRef.current) {
+      workerRef.current.postMessage({ type: 'updateBreakpoints', breakpoints: bps })
+    }
+  }, [])
+
   return {
     status,
     output,
     error,
     elapsedMs,
+    debugState,
     run,
     stop,
     sendInput,
     clearOutput,
+    stepIn,
+    stepOver,
+    stepOut,
+    continueExec,
+    setBreakpoints,
   }
 }

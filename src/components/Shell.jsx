@@ -30,7 +30,9 @@ export default function Shell({
 
   const {
     status, output, error, elapsedMs,
-    stop, sendInput,
+    stop, sendInput, debugState,
+    stepIn, stepOver, stepOut, continueExec,
+    setBreakpoints,
   } = runner
 
   const [sidebarWidth, setSidebarWidth] = useState(220)
@@ -38,6 +40,7 @@ export default function Shell({
   const [saveFlash, setSaveFlash] = useState(0)
   const [cursor, setCursor] = useState({ line: 1, column: 1, selected: 0 })
   const [showSettings, setShowSettings] = useState(false)
+  const [breakpoints, setBreakpointsState] = useState([])
 
   const shellRef = useRef(null)
   const centerRef = useRef(null)
@@ -74,6 +77,31 @@ export default function Shell({
     }, 50)
   }, [files, activeFile, selectFile])
 
+  const handleToggleBreakpoint = useCallback(() => {
+    const line = cursor.line
+    const file = activeFile
+    setBreakpointsState(prev => {
+      const exists = prev.find(bp => bp.file === file && bp.line === line)
+      const next = exists
+        ? prev.filter(bp => !(bp.file === file && bp.line === line))
+        : [...prev, { file, line }]
+      setBreakpoints(next)
+      return next
+    })
+  }, [cursor.line, activeFile, setBreakpoints])
+
+  const handleBreakpointToggle = useCallback((line) => {
+    const file = activeFile
+    setBreakpointsState(prev => {
+      const exists = prev.find(bp => bp.file === file && bp.line === line)
+      const next = exists
+        ? prev.filter(bp => !(bp.file === file && bp.line === line))
+        : [...prev, { file, line }]
+      setBreakpoints(next)
+      return next
+    })
+  }, [activeFile, setBreakpoints])
+
   useKeyboardShortcuts({
     onRun,
     onStop: stop,
@@ -81,6 +109,11 @@ export default function Shell({
     onCloseTab: handleCloseTab,
     onSave: handleSave,
     status,
+    onStepOver: stepOver,
+    onStepIn: stepIn,
+    onStepOut: stepOut,
+    onContinue: continueExec,
+    onToggleBreakpoint: handleToggleBreakpoint,
   })
 
   const handleSidebarDrag = useCallback((e) => {
@@ -153,6 +186,10 @@ export default function Shell({
         saveFlash={saveFlash}
         files={files}
         onImport={loadNewProject}
+        onStepIn={stepIn}
+        onStepOver={stepOver}
+        onStepOut={stepOut}
+        onContinue={continueExec}
       />
 
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
@@ -211,6 +248,9 @@ export default function Shell({
               activeFile={activeFile}
               onCursorChange={setCursor}
               editorSettings={settings}
+              breakpoints={breakpoints.filter(bp => bp.file === activeFile).map(bp => bp.line)}
+              onBreakpointToggle={handleBreakpointToggle}
+              pausedLine={debugState && debugState.file === activeFile ? debugState.line : null}
             />
           </div>
 

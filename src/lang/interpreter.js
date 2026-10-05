@@ -25,7 +25,7 @@ export class ReturnSignal {
 }
 
 export class Interpreter {
-  constructor({ output, onAsk, fileName = 'main.nova' } = {}) {
+  constructor({ output, onAsk, fileName = 'main.nova', debugHook } = {}) {
     this.output = output || (() => {})
     this.onAsk = onAsk || null
     this.fileName = fileName
@@ -36,6 +36,7 @@ export class Interpreter {
     this.depth = 0
     this.currentDeclaringClass = null
     this.moduleLoader = null
+    this.debugHook = debugHook || null
     registerGlobals(this.globals, (kind, msg, hint, loc) => this.error(kind, msg, hint, loc))
   }
 
@@ -59,6 +60,9 @@ export class Interpreter {
   }
 
   async execute(node) {
+    if (this.debugHook && node.loc && node.type !== 'Program') {
+      await this.debugHook(node, this.env, this.callStack, this.fileName)
+    }
     switch (node.type) {
       case 'Program': return await this.run(node)
       case 'Declare': return await this.execDeclare(node)

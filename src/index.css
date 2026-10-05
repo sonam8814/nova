@@ -47,3 +47,20 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+.nova-breakpoint-glyph {
+  background-color: var(--halt);
+  border-radius: 50%;
+  width: 10px !important;
+  height: 10px !important;
+  margin-left: 4px;
+  margin-top: 6px;
+}
+
+.nova-paused-line {
+  background-color: rgba(210, 162, 76, 0.15);
+}
+
+.nova-paused-glyph {
+  border-left: 3px solid var(--mark);
+}

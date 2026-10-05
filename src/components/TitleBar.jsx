@@ -4,7 +4,7 @@ import { getShareUrl, exportProjectJSON, importProjectJSON } from '../state/shar
 const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent)
 const MOD = IS_MAC ? '⌘' : 'Ctrl+'
 
-export default function TitleBar({ status, onRun, onStop, saveFlash, files, onImport }) {
+export default function TitleBar({ status, onRun, onStop, saveFlash, files, onImport, onStepIn, onStepOver, onStepOut, onContinue }) {
   const [shareMsg, setShareMsg] = useState(null)
   const shareMsgTimer = useRef(null)
 
@@ -69,6 +69,16 @@ export default function TitleBar({ status, onRun, onStop, saveFlash, files, onIm
       <TitleButton label="Import" title="Load project from JSON" onClick={handleImport} />
 
       <div style={{ width: '1px', height: '20px', backgroundColor: 'var(--rule)', margin: '0 4px' }} />
+
+      {status === 'paused' && (
+        <>
+          <TitleButton label="Continue" title="Continue (F5)" onClick={onContinue} />
+          <TitleButton label="Step over" title="Step over (F10)" onClick={onStepOver} />
+          <TitleButton label="Step in" title="Step in (F11)" onClick={onStepIn} />
+          <TitleButton label="Step out" title="Step out (Shift+F11)" onClick={onStepOut} />
+          <div style={{ width: '1px', height: '20px', backgroundColor: 'var(--rule)', margin: '0 4px' }} />
+        </>
+      )}
 
       <button
         onClick={onRun}

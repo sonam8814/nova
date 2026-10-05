@@ -3,7 +3,7 @@ import { runProgram } from './runner.worker.js'
 
 async function collect(files, entry) {
   const messages = []
-  await runProgram({ files, entry }, (msg) => messages.push(msg), null)
+  await runProgram({ files, entry }, (msg) => messages.push(msg), null, null)
   return messages
 }
 
@@ -112,7 +112,8 @@ describe('runner.worker — runProgram', () => {
     await runProgram(
       { files: { 'main.nova': 'remember name as ask "What is your name?"\nshow "Hello, {name}!"' }, entry: 'main.nova' },
       (msg) => messages.push(msg),
-      async () => inputs.shift()
+      async () => inputs.shift(),
+      null
     )
     const outputs = messages.filter(m => m.type === 'output' && m.stream === 'out')
     expect(outputs.map(m => m.text)).toEqual(['What is your name?', 'Hello, Alice!'])
