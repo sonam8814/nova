@@ -9,6 +9,8 @@ import StatusBar from './StatusBar.jsx'
 import SettingsPanel from './SettingsPanel.jsx'
 import DebugPanel from './DebugPanel.jsx'
 import FileSwitcher from './FileSwitcher.jsx'
+import ShareDialog from './ShareDialog.jsx'
+import { getShareUrl } from '../state/sharing.js'
 import { useKeyboardShortcuts } from '../state/useKeyboardShortcuts.js'
 
 const MIN_SIDEBAR = 140
@@ -47,6 +49,7 @@ export default function Shell({
   const [showSettings, setShowSettings] = useState(false)
   const [breakpoints, setBreakpointsState] = useState([])
   const [showFileSwitcher, setShowFileSwitcher] = useState(false)
+  const [shareUrl, setShareUrl] = useState(null)
 
   const shellRef = useRef(null)
   const centerRef = useRef(null)
@@ -111,6 +114,10 @@ export default function Shell({
   const handleFileSwitcher = useCallback(() => {
     setShowFileSwitcher(prev => !prev)
   }, [])
+
+  const handleShare = useCallback(() => {
+    setShareUrl(getShareUrl(files))
+  }, [files])
 
   useKeyboardShortcuts({
     onRun,
@@ -230,6 +237,7 @@ export default function Shell({
         saveFlash={saveFlash}
         files={files}
         onImport={loadNewProject}
+        onShare={handleShare}
         onStepIn={stepIn}
         onStepOver={stepOver}
         onStepOut={stepOut}
@@ -371,6 +379,13 @@ export default function Shell({
           activeFile={activeFile}
           onSelect={selectFile}
           onClose={() => setShowFileSwitcher(false)}
+        />
+      )}
+
+      {shareUrl && (
+        <ShareDialog
+          url={shareUrl}
+          onClose={() => setShareUrl(null)}
         />
       )}
 

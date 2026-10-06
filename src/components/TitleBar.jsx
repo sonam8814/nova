@@ -1,22 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { getShareUrl, exportProjectJSON, importProjectJSON } from '../state/sharing.js'
+import { exportProjectJSON, importProjectJSON } from '../state/sharing.js'
 
 const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent)
 const MOD = IS_MAC ? '⌘' : 'Ctrl+'
 
-export default function TitleBar({ status, onRun, onStop, saveFlash, files, onImport, onStepIn, onStepOver, onStepOut, onContinue }) {
-  const [shareMsg, setShareMsg] = useState(null)
-  const shareMsgTimer = useRef(null)
-
-  const handleShare = () => {
-    const url = getShareUrl(files)
-    navigator.clipboard.writeText(url).then(() => {
-      setShareMsg('Link copied!')
-      if (shareMsgTimer.current) clearTimeout(shareMsgTimer.current)
-      shareMsgTimer.current = setTimeout(() => setShareMsg(null), 2000)
-    })
-  }
-
+export default function TitleBar({ status, onRun, onStop, saveFlash, files, onImport, onShare, onStepIn, onStepOver, onStepOut, onContinue }) {
   const handleExport = () => {
     exportProjectJSON(files)
   }
@@ -54,17 +42,7 @@ export default function TitleBar({ status, onRun, onStop, saveFlash, files, onIm
 
       <div style={{ flex: 1 }} />
 
-      {shareMsg && (
-        <span style={{
-          fontFamily: "'IBM Plex Sans', sans-serif",
-          fontSize: '12px',
-          color: 'var(--sage)',
-        }}>
-          {shareMsg}
-        </span>
-      )}
-
-      <TitleButton label="Share" title="Copy share link" onClick={handleShare} />
+      <TitleButton label="Share" title="Share project link" onClick={onShare} />
       <TitleButton label="Export" title="Download project as JSON" onClick={handleExport} />
       <TitleButton label="Import" title="Load project from JSON" onClick={handleImport} />
 
