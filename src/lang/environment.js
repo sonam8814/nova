@@ -16,11 +16,12 @@ export class Environment {
   }
 
   get(name) {
-    if (this.values.has(name)) {
-      return this.values.get(name)
-    }
-    if (this.parent) {
-      return this.parent.get(name)
+    let env = this
+    while (env) {
+      const val = env.values.get(name)
+      if (val !== undefined) return val
+      if (val === undefined && env.values.has(name)) return val
+      env = env.parent
     }
     const suggestion = this.suggest(name)
     const hint = suggestion
@@ -30,16 +31,16 @@ export class Environment {
   }
 
   assign(name, value) {
-    if (this.values.has(name)) {
-      if (this.constants.has(name)) {
-        throw this.makeError('NameError', `Cannot reassign constant '${name}'.`, `'${name}' was declared with 'constant' and cannot be changed.`)
+    let env = this
+    while (env) {
+      if (env.values.has(name)) {
+        if (env.constants.has(name)) {
+          throw this.makeError('NameError', `Cannot reassign constant '${name}'.`, `'${name}' was declared with 'constant' and cannot be changed.`)
+        }
+        env.values.set(name, value)
+        return
       }
-      this.values.set(name, value)
-      return
-    }
-    if (this.parent) {
-      this.parent.assign(name, value)
-      return
+      env = env.parent
     }
     const suggestion = this.suggest(name)
     const hint = suggestion
@@ -49,8 +50,11 @@ export class Environment {
   }
 
   has(name) {
-    if (this.values.has(name)) return true
-    if (this.parent) return this.parent.has(name)
+    let env = this
+    while (env) {
+      if (env.values.has(name)) return true
+      env = env.parent
+    }
     return false
   }
 

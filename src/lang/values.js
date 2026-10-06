@@ -65,6 +65,7 @@ export function isTruthy(v) {
 }
 
 export function novaFunction(name, params, returnType, body, closure) {
+  const required = params.filter(p => p.default === null).length
   return {
     _type: 'function',
     name: name || null,
@@ -74,6 +75,8 @@ export function novaFunction(name, params, returnType, body, closure) {
     closure,
     boundThis: null,
     declaringClass: null,
+    _arity: required,
+    _maxArity: params.length,
   }
 }
 

@@ -17,6 +17,9 @@ export class ContinueSignal {
   constructor() { this._signal = 'continue' }
 }
 
+const BREAK = new BreakSignal()
+const CONTINUE = new ContinueSignal()
+
 export class ReturnSignal {
   constructor(value) {
     this._signal = 'return'
@@ -59,10 +62,26 @@ export class Interpreter {
     }
   }
 
-  async execute(node) {
+  execute(node) {
     if (this.debugHook && node.loc && node.type !== 'Program') {
-      await this.debugHook(node, this.env, this.callStack, this.fileName)
+      return this._executeDebug(node)
     }
+    switch (node.type) {
+      case 'FuncDecl': return this.execFuncDecl(node)
+      case 'ClassDecl': return this.execClassDecl(node)
+      case 'Skip': throw CONTINUE
+      case 'Stop': throw BREAK
+      case 'ExprStmt': return this.evaluate(node.expression)
+      default: return this._executeAsync(node)
+    }
+  }
+
+  async _executeDebug(node) {
+    await this.debugHook(node, this.env, this.callStack, this.fileName)
+    return this._executeAsync(node)
+  }
+
+  async _executeAsync(node) {
     switch (node.type) {
       case 'Program': return await this.run(node)
       case 'Declare': return await this.execDeclare(node)
@@ -80,32 +99,32 @@ export class Interpreter {
       case 'Raise': return await this.execRaise(node)
       case 'Attempt': return await this.execAttempt(node)
       case 'Use': return await this.execUse(node)
-      case 'Skip': throw new ContinueSignal()
-      case 'Stop': throw new BreakSignal()
+      case 'Skip': throw CONTINUE
+      case 'Stop': throw BREAK
       case 'ExprStmt': return await this.evaluate(node.expression)
       default:
         throw this.error('RuntimeError', `Cannot execute '${node.type}' yet.`, null, node.loc)
     }
   }
 
-  async evaluate(node) {
+  evaluate(node) {
     switch (node.type) {
       case 'Num': return node.value
       case 'Text': return node.value
       case 'Bool': return node.value
       case 'Nothing': return null
       case 'Ident': return this.evalIdent(node)
-      case 'Binary': return await this.evalBinary(node)
-      case 'Unary': return await this.evalUnary(node)
-      case 'Grouping': return await this.evaluate(node.expression)
-      case 'ListLit': return await this.evalListLit(node)
-      case 'MapLit': return await this.evalMapLit(node)
-      case 'Index': return await this.evalIndex(node)
-      case 'Property': return await this.evalProperty(node)
-      case 'Call': return await this.evalCall(node)
       case 'Action': return this.evalAction(node)
-      case 'New': return await this.evalNew(node)
-      case 'Interpolation': return await this.evalInterpolation(node)
+      case 'Binary': return this.evalBinary(node)
+      case 'Unary': return this.evalUnary(node)
+      case 'Grouping': return this.evaluate(node.expression)
+      case 'ListLit': return this.evalListLit(node)
+      case 'MapLit': return this.evalMapLit(node)
+      case 'Index': return this.evalIndex(node)
+      case 'Property': return this.evalProperty(node)
+      case 'Call': return this.evalCall(node)
+      case 'New': return this.evalNew(node)
+      case 'Interpolation': return this.evalInterpolation(node)
       default:
         throw this.error('RuntimeError', `Cannot evaluate '${node.type}' yet.`, null, node.loc)
     }
@@ -405,15 +424,20 @@ export class Interpreter {
   }
 
   hoistFunctions(stmts) {
+    if (stmts._noHoist) return
+    let anyHoisted = false
     for (const stmt of stmts) {
       if (stmt.type === 'FuncDecl') {
+        anyHoisted = true
         const fn = novaFunction(stmt.name, stmt.params, stmt.returnType, stmt.body, this.env)
         this.env.declare(stmt.name, fn, {})
       }
       if (stmt.type === 'ClassDecl') {
+        anyHoisted = true
         this.execClassDecl(stmt)
       }
     }
+    if (!anyHoisted) stmts._noHoist = true
   }
 
   execFuncDecl(_node) {
@@ -572,8 +596,8 @@ export class Interpreter {
       return await fn._native(args)
     }
 
-    const required = fn.params.filter(p => p.default === null).length
-    const total = fn.params.length
+    const required = fn._arity !== undefined ? fn._arity : fn.params.filter(p => p.default === null).length
+    const total = fn._maxArity !== undefined ? fn._maxArity : fn.params.length
 
     if (args.length < required || args.length > total) {
       const name = fn.name || 'anonymous action'
@@ -746,19 +770,41 @@ export class Interpreter {
     }
   }
 
-  async evalBinary(node) {
+  evalBinary(node) {
     if (node.operator === 'and') {
-      const left = await this.evaluate(node.left)
-      return isTruthy(left) ? await this.evaluate(node.right) : left
+      const left = this.evaluate(node.left)
+      if (left instanceof Promise) return left.then(l => isTruthy(l) ? this.evaluate(node.right) : l)
+      return isTruthy(left) ? this.evaluate(node.right) : left
     }
     if (node.operator === 'or') {
-      const left = await this.evaluate(node.left)
-      return isTruthy(left) ? left : await this.evaluate(node.right)
+      const left = this.evaluate(node.left)
+      if (left instanceof Promise) return left.then(l => isTruthy(l) ? l : this.evaluate(node.right))
+      return isTruthy(left) ? left : this.evaluate(node.right)
     }
 
-    const left = await this.evaluate(node.left)
-    const right = await this.evaluate(node.right)
+    const left = this.evaluate(node.left)
 
+    if (left instanceof Promise) {
+      return this._evalBinaryLeftAsync(left, node)
+    }
+
+    const right = this.evaluate(node.right)
+
+    if (right instanceof Promise) {
+      return right.then(r => this._applyBinaryOp(left, r, node))
+    }
+
+    return this._applyBinaryOp(left, right, node)
+  }
+
+  async _evalBinaryLeftAsync(leftPromise, node) {
+    const left = await leftPromise
+    const right = this.evaluate(node.right)
+    const r = right instanceof Promise ? await right : right
+    return this._applyBinaryOp(left, r, node)
+  }
+
+  _applyBinaryOp(left, right, node) {
     switch (node.operator) {
       case '+': return this.add(left, right, node)
       case '-': return this.numOp(left, right, (a, b) => a - b, '-', node)
