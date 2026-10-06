@@ -4,7 +4,7 @@ export const EXAMPLES = [
     description: 'Variables, input, and string interpolation',
     files: {
       'main.nova': `note A friendly greeting
-remember name as ask "What is your name?"
+remember name as ask "What is your name? "
 show "Hello, {name}!"
 show "Welcome to Nova."
 `,
@@ -50,8 +50,8 @@ done
     description: 'OOP with fields, methods, and inheritance',
     files: {
       'main.nova': `describe Animal
-  has name as text
-  has sound as text
+  has name
+  has sound
 
   define setup with name, sound
     set my.name to name
@@ -63,7 +63,7 @@ done
   done
 done
 
-describe Dog is Animal
+describe Dog from Animal
   define setup with name
     parent.setup(name, "Woof")
   done
@@ -94,7 +94,7 @@ attempt
   show divide(10, 3)
   show divide(10, 0)
 rescue err
-  show "Caught: {err}"
+  show "Caught: {err["message"]}"
 always
   show "Division complete."
 done
@@ -122,7 +122,7 @@ show "Total: {size of items} items"
     give back ""
   done
   remember first as word.upper()
-  remember rest as word.slice(1, word.length())
+  remember rest as word.slice(1, size of word)
   give back first.slice(0, 1) + rest
 done
 `,
@@ -134,9 +134,9 @@ done
     files: {
       'main.nova': `note Lists
 remember fruits as ["mango", "kiwi", "apple", "banana"]
-fruits.push("grape")
-fruits.sort()
-show "Sorted: {fruits}"
+fruits.add("grape")
+remember sorted as fruits.sort()
+show "Sorted: {sorted}"
 
 note Maps
 remember scores as {"alice": 95, "bob": 82, "carol": 91}
@@ -144,7 +144,7 @@ set scores["dave"] to 88
 
 show ""
 show "Scores:"
-for each name, score in scores
+for each name to score in scores
   check if score >= 90
     show "  {name}: {score} (A)"
   otherwise
