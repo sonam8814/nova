@@ -147,15 +147,36 @@ export default forwardRef(function CodeEditor({
     if (onChange) onChange(newValue)
   }, [onChange])
 
+  const isEmpty = !value || value.trim() === ''
+
   return (
-    <Editor
-      defaultLanguage={LANG_NAME}
-      theme={NIGHTLEAF_THEME}
-      value={value}
-      onChange={handleChange}
-      beforeMount={handleBeforeMount}
-      onMount={handleMount}
-      options={{
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      {isEmpty && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '12px',
+            left: '62px',
+            zIndex: 1,
+            pointerEvents: 'none',
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: '14px',
+            lineHeight: '1.65',
+            color: 'var(--vellum-dim)',
+            fontStyle: 'italic',
+          }}
+        >
+          Start writing, or pick an example from the left.
+        </div>
+      )}
+      <Editor
+        defaultLanguage={LANG_NAME}
+        theme={NIGHTLEAF_THEME}
+        value={value}
+        onChange={handleChange}
+        beforeMount={handleBeforeMount}
+        onMount={handleMount}
+        options={{
         fontFamily: "'IBM Plex Mono', monospace",
         fontSize: editorSettings?.fontSize ?? 14,
         lineHeight: Math.round((editorSettings?.fontSize ?? 14) * 1.65),
@@ -187,5 +208,6 @@ export default forwardRef(function CodeEditor({
         },
       }}
     />
+    </div>
   )
 })
