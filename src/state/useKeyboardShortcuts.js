@@ -3,7 +3,7 @@ import { useEffect, useCallback } from 'react'
 export function useKeyboardShortcuts({
   onRun, onStop, onNewFile, onCloseTab, onSave, status,
   onStepOver, onStepIn, onStepOut, onContinue, onToggleBreakpoint,
-  onFileSwitcher,
+  onFileSwitcher, onCommandPalette,
 }) {
   const handler = useCallback((e) => {
     const mod = e.metaKey || e.ctrlKey
@@ -38,7 +38,13 @@ export function useKeyboardShortcuts({
       return
     }
 
-    if (mod && e.key === 'p') {
+    if (mod && e.shiftKey && (e.key === 'p' || e.key === 'P')) {
+      e.preventDefault()
+      onCommandPalette?.()
+      return
+    }
+
+    if (mod && !e.shiftKey && e.key === 'p') {
       e.preventDefault()
       onFileSwitcher?.()
       return
@@ -75,7 +81,7 @@ export function useKeyboardShortcuts({
     }
   }, [onRun, onStop, onNewFile, onCloseTab, onSave, status,
       onStepOver, onStepIn, onStepOut, onContinue, onToggleBreakpoint,
-      onFileSwitcher])
+      onFileSwitcher, onCommandPalette])
 
   useEffect(() => {
     window.addEventListener('keydown', handler)

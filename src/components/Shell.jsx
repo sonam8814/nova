@@ -11,7 +11,8 @@ import SettingsPanel from './SettingsPanel.jsx'
 import DebugPanel from './DebugPanel.jsx'
 import FileSwitcher from './FileSwitcher.jsx'
 import ShareDialog from './ShareDialog.jsx'
-import { getShareUrl } from '../state/sharing.js'
+import CommandPalette, { useCommands } from './CommandPalette.jsx'
+import { getShareUrl, exportProjectJSON, importProjectJSON } from '../state/sharing.js'
 import { useKeyboardShortcuts } from '../state/useKeyboardShortcuts.js'
 
 const MIN_SIDEBAR = 140
@@ -51,6 +52,7 @@ export default function Shell({
   const [showSettings, setShowSettings] = useState(false)
   const [breakpoints, setBreakpointsState] = useState([])
   const [showFileSwitcher, setShowFileSwitcher] = useState(false)
+  const [showCommandPalette, setShowCommandPalette] = useState(false)
   const [shareUrl, setShareUrl] = useState(null)
   const [outputTab, setOutputTab] = useState('output')
 
@@ -122,6 +124,42 @@ export default function Shell({
     setShareUrl(getShareUrl(files))
   }, [files])
 
+  const handleExport = useCallback(() => {
+    exportProjectJSON(files)
+  }, [files])
+
+  const handleImport = useCallback(async () => {
+    const imported = await importProjectJSON()
+    if (imported) loadNewProject(imported)
+  }, [loadNewProject])
+
+  const handleCommandPalette = useCallback(() => {
+    setShowCommandPalette(prev => !prev)
+  }, [])
+
+  const commands = useCommands({
+    onRun,
+    onStop: stop,
+    status,
+    onNewFile: handleNewFile,
+    onCloseTab: handleCloseTab,
+    onSave: handleSave,
+    onShare: handleShare,
+    onExport: handleExport,
+    onImport: handleImport,
+    onToggleSettings: () => setShowSettings(prev => !prev),
+    onToggleBreakpoint: handleToggleBreakpoint,
+    onFileSwitcher: handleFileSwitcher,
+    onStepIn: stepIn,
+    onStepOver: stepOver,
+    onStepOut: stepOut,
+    onContinue: continueExec,
+    onClearOutput: runner.clearOutput,
+    onShowOutput: () => setOutputTab('output'),
+    onShowConsole: () => setOutputTab('console'),
+    onResetConsole: consoleState.reset,
+  })
+
   useKeyboardShortcuts({
     onRun,
     onStop: stop,
@@ -135,6 +173,7 @@ export default function Shell({
     onContinue: continueExec,
     onToggleBreakpoint: handleToggleBreakpoint,
     onFileSwitcher: handleFileSwitcher,
+    onCommandPalette: handleCommandPalette,
   })
 
   const handleSidebarDrag = useCallback((e) => {
@@ -396,6 +435,13 @@ export default function Shell({
           activeFile={activeFile}
           onSelect={selectFile}
           onClose={() => setShowFileSwitcher(false)}
+        />
+      )}
+
+      {showCommandPalette && (
+        <CommandPalette
+          commands={commands}
+          onClose={() => setShowCommandPalette(false)}
         />
       )}
 
