@@ -38,6 +38,7 @@ export function useProject() {
   const [openFiles, setOpenFiles] = useState([DEFAULT_ENTRY])
   const [dirty, setDirty] = useState(false)
   const [loaded, setLoaded] = useState(false)
+  const [isFirstRun, setIsFirstRun] = useState(false)
 
   const saveTimerRef = useRef(null)
 
@@ -60,6 +61,8 @@ export function useProject() {
         setFiles(saved.files)
         setActiveFile(saved.activeFile || Object.keys(saved.files)[0])
         setOpenFiles(saved.openFiles || Object.keys(saved.files))
+      } else {
+        setIsFirstRun(true)
       }
       setLoaded(true)
     })
@@ -181,6 +184,10 @@ export function useProject() {
     return true
   }, [activeFile, files, scheduleSave])
 
+  const dismissWelcome = useCallback(() => {
+    setIsFirstRun(false)
+  }, [])
+
   const loadNewProject = useCallback((projectFiles, entry) => {
     const entryFile = entry || Object.keys(projectFiles)[0]
     const allFiles = Object.keys(projectFiles)
@@ -199,6 +206,7 @@ export function useProject() {
     openFiles,
     dirty: isDirty,
     loaded,
+    isFirstRun,
     updateFileContent,
     selectFile,
     closeFile,
@@ -206,5 +214,6 @@ export function useProject() {
     deleteFile,
     renameFile,
     loadNewProject,
+    dismissWelcome,
   }
 }

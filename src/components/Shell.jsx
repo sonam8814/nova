@@ -3,6 +3,7 @@ import TitleBar from './TitleBar.jsx'
 import FileTree from './FileTree.jsx'
 import TabBar from './TabBar.jsx'
 import CodeEditor from './CodeEditor.jsx'
+import WelcomeTab from './WelcomeTab.jsx'
 import Terminal from './Terminal.jsx'
 import Console from './Console.jsx'
 import InputPanel from './InputPanel.jsx'
@@ -32,6 +33,7 @@ export default function Shell({
 }) {
   const {
     files, activeFile, openFiles, loaded,
+    isFirstRun, dismissWelcome,
     updateFileContent, selectFile, closeFile,
     createFile, deleteFile, renameFile,
     loadNewProject,
@@ -130,15 +132,23 @@ export default function Shell({
 
   const handleImport = useCallback(async () => {
     const imported = await importProjectJSON()
-    if (imported) loadNewProject(imported)
-  }, [loadNewProject])
+    if (imported) {
+      loadNewProject(imported)
+      if (isFirstRun) dismissWelcome()
+    }
+  }, [loadNewProject, isFirstRun, dismissWelcome])
 
   const handleCommandPalette = useCallback(() => {
     setShowCommandPalette(prev => !prev)
   }, [])
 
+  const handleRunWithDismiss = useCallback(() => {
+    if (isFirstRun) dismissWelcome()
+    onRun()
+  }, [isFirstRun, dismissWelcome, onRun])
+
   const commands = useCommands({
-    onRun,
+    onRun: handleRunWithDismiss,
     onStop: stop,
     status,
     onNewFile: handleNewFile,
@@ -161,7 +171,7 @@ export default function Shell({
   })
 
   useKeyboardShortcuts({
-    onRun,
+    onRun: handleRunWithDismiss,
     onStop: stop,
     onNewFile: handleNewFile,
     onCloseTab: handleCloseTab,
@@ -274,7 +284,7 @@ export default function Shell({
     >
       <TitleBar
         status={status}
-        onRun={onRun}
+        onRun={handleRunWithDismiss}
         onStop={stop}
         saveFlash={saveFlash}
         files={files}
@@ -296,7 +306,10 @@ export default function Shell({
             onCreate={createFile}
             onDelete={deleteFile}
             onRename={renameFile}
-            onLoadExample={loadNewProject}
+            onLoadExample={(exFiles) => {
+              loadNewProject(exFiles)
+              if (isFirstRun) dismissWelcome()
+            }}
           />
         </div>
 
@@ -334,19 +347,29 @@ export default function Shell({
             onClose={closeFile}
           />
 
-          {/* Editor */}
+          {/* Editor or Welcome */}
           <div style={{ flex: editorFrac, minHeight: 0, position: 'relative' }}>
-            <CodeEditor
-              ref={editorRef}
-              value={files[activeFile] || ''}
-              onChange={(val) => updateFileContent(activeFile, val)}
-              activeFile={activeFile}
-              onCursorChange={setCursor}
-              editorSettings={settings}
-              breakpoints={breakpoints.filter(bp => bp.file === activeFile).map(bp => bp.line)}
-              onBreakpointToggle={handleBreakpointToggle}
-              pausedLine={debugState && debugState.file === activeFile ? debugState.line : null}
-            />
+            {isFirstRun ? (
+              <WelcomeTab
+                onLoadExample={(exFiles) => {
+                  loadNewProject(exFiles)
+                  dismissWelcome()
+                }}
+                onDismiss={dismissWelcome}
+              />
+            ) : (
+              <CodeEditor
+                ref={editorRef}
+                value={files[activeFile] || ''}
+                onChange={(val) => updateFileContent(activeFile, val)}
+                activeFile={activeFile}
+                onCursorChange={setCursor}
+                editorSettings={settings}
+                breakpoints={breakpoints.filter(bp => bp.file === activeFile).map(bp => bp.line)}
+                onBreakpointToggle={handleBreakpointToggle}
+                pausedLine={debugState && debugState.file === activeFile ? debugState.line : null}
+              />
+            )}
           </div>
 
           {/* Output resize handle */}
