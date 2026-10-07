@@ -6,6 +6,7 @@ export function useRunner() {
   const [error, setError] = useState(null)
   const [elapsedMs, setElapsedMs] = useState(null)
   const [debugState, setDebugState] = useState(null)
+  const [runCount, setRunCount] = useState(0)
 
   const workerRef = useRef(null)
   const bufferRef = useRef([])
@@ -42,7 +43,7 @@ export function useRunner() {
 
       switch (msg.type) {
         case 'output':
-          bufferRef.current.push({ text: msg.text, stream: msg.stream })
+          bufferRef.current.push({ text: msg.text, stream: msg.stream, ms: msg.ms })
           scheduleFlush()
           break
         case 'error':
@@ -109,6 +110,7 @@ export function useRunner() {
     setElapsedMs(null)
     setDebugState(null)
     setStatus('running')
+    setRunCount(prev => prev + 1)
 
     const worker = createWorker()
     workerRef.current = worker
@@ -196,6 +198,7 @@ export function useRunner() {
     error,
     elapsedMs,
     debugState,
+    runCount,
     run,
     stop,
     sendInput,

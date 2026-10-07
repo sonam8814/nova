@@ -1,4 +1,4 @@
-export default function StatusBar({ cursor, activeFile, content, tabSize, onToggleSettings }) {
+export default function StatusBar({ cursor, activeFile, content, tabSize, onToggleSettings, runCount }) {
   const lineCount = content ? content.split('\n').length : 0
   const wordCount = content ? content.split(/\s+/).filter(Boolean).length : 0
 
@@ -34,6 +34,11 @@ export default function StatusBar({ cursor, activeFile, content, tabSize, onTogg
         <span>{wordCount} words</span>
         <span>{lineCount} lines</span>
         <span>Spaces: {tabSize}</span>
+        {runCount > 0 && (
+          <span title={`Program run ${runCount} time${runCount === 1 ? '' : 's'} this session`}>
+            Runs: {runCount}
+          </span>
+        )}
         <span style={{ color: 'var(--vellum-mid)' }}>Nova</span>
         <button
           onClick={onToggleSettings}

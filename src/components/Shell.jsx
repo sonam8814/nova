@@ -57,6 +57,8 @@ export default function Shell({
   const [showCommandPalette, setShowCommandPalette] = useState(false)
   const [shareUrl, setShareUrl] = useState(null)
   const [outputTab, setOutputTab] = useState('output')
+  const [showTimestamps, setShowTimestamps] = useState(false)
+  const [wrapOutput, setWrapOutput] = useState(true)
 
   const shellRef = useRef(null)
   const centerRef = useRef(null)
@@ -406,6 +408,10 @@ export default function Shell({
               onConsoleClear={consoleState.clearEntries}
               onConsoleReset={consoleState.reset}
               consoleHasEntries={consoleState.entries.length > 0}
+              showTimestamps={showTimestamps}
+              onToggleTimestamps={() => setShowTimestamps(prev => !prev)}
+              wrapOutput={wrapOutput}
+              onToggleWrap={() => setWrapOutput(prev => !prev)}
               consoleSlot={
                 <Console
                   entries={consoleState.entries}
@@ -482,6 +488,7 @@ export default function Shell({
           content={files[activeFile] || ''}
           tabSize={settings.tabSize}
           onToggleSettings={() => setShowSettings(prev => !prev)}
+          runCount={runner.runCount}
         />
         {showSettings && (
           <SettingsPanel

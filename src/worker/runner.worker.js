@@ -74,7 +74,7 @@ export async function runProgram({ files, entry, breakpoints }, post, waitForInp
   try {
     const loader = new ModuleLoader(files, {
       output: (text) => {
-        post({ type: 'output', text, stream: 'out' })
+        post({ type: 'output', text, stream: 'out', ms: Math.round(performance.now() - start) })
       },
       onAsk,
       fileSystem,
@@ -88,13 +88,14 @@ export async function runProgram({ files, entry, breakpoints }, post, waitForInp
   } catch (e) {
     if (e.errorData) {
       const formatted = formatError(files, e.errorData)
-      post({ type: 'output', text: formatted, stream: 'err' })
+      post({ type: 'output', text: formatted, stream: 'err', ms: Math.round(performance.now() - start) })
       post({ type: 'error', error: e.errorData })
     } else {
       post({
         type: 'output',
         text: `InternalError: ${e.message}`,
         stream: 'err',
+        ms: Math.round(performance.now() - start),
       })
       post({
         type: 'error',

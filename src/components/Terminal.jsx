@@ -8,7 +8,19 @@ function parseErrorLoc(text) {
   return { file: match[2], line: parseInt(match[3], 10), column: parseInt(match[4], 10) }
 }
 
-export default function Terminal({ output, status, elapsedMs, onClear, onErrorClick, activeTab, onTabChange, consoleSlot, onConsoleClear, onConsoleReset, consoleHasEntries }) {
+function formatMs(ms) {
+  if (ms == null) return ''
+  if (ms < 1000) return `+${ms}ms`
+  return `+${(ms / 1000).toFixed(1)}s`
+}
+
+export default function Terminal({
+  output, status, elapsedMs, onClear, onErrorClick,
+  activeTab, onTabChange, consoleSlot,
+  onConsoleClear, onConsoleReset, consoleHasEntries,
+  showTimestamps, onToggleTimestamps,
+  wrapOutput, onToggleWrap,
+}) {
   const containerRef = useRef(null)
   const userScrolledRef = useRef(false)
   const [copied, setCopied] = useState(false)
@@ -75,6 +87,18 @@ export default function Terminal({ output, status, elapsedMs, onClear, onErrorCl
               <StatusLine status={status} elapsedMs={elapsedMs} />
               {hasOutput && (
                 <>
+                  <ToggleButton
+                    label="Timestamps"
+                    active={showTimestamps}
+                    onClick={onToggleTimestamps}
+                    title="Toggle timestamps"
+                  />
+                  <ToggleButton
+                    label="Wrap"
+                    active={wrapOutput}
+                    onClick={onToggleWrap}
+                    title="Toggle word wrap"
+                  />
                   <ToolButton
                     label={copied ? 'Copied' : 'Copy'}
                     onClick={handleCopy}
@@ -118,35 +142,81 @@ export default function Terminal({ output, status, elapsedMs, onClear, onErrorCl
             flex: 1,
             overflowY: 'auto',
             overflowX: 'auto',
-            padding: '8px 12px',
+            padding: '8px 0',
             fontFamily: "'IBM Plex Mono', monospace",
             fontSize: '14px',
             lineHeight: '1.65',
           }}
         >
           {isEmpty ? (
-            <span style={{ color: 'var(--vellum-dim)', fontStyle: 'italic' }}>
+            <span style={{ color: 'var(--vellum-dim)', fontStyle: 'italic', padding: '0 12px' }}>
               Output appears here when you run.
             </span>
           ) : (
             output.map((line, i) => {
               const isErr = line.stream === 'err'
               const loc = isErr ? parseErrorLoc(line.text) : null
+              const lineNum = i + 1
+
               return (
                 <div
                   key={i}
                   onClick={() => handleLineClick(line)}
                   style={{
-                    color: isErr ? 'var(--halt)' : 'var(--vellum)',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
+                    display: 'flex',
+                    alignItems: 'baseline',
                     cursor: loc ? 'pointer' : 'default',
                     borderRadius: loc ? '2px' : undefined,
+                    padding: '0 12px 0 0',
                   }}
                   onMouseEnter={loc ? (e) => { e.currentTarget.style.backgroundColor = 'var(--ink-700)' } : undefined}
                   onMouseLeave={loc ? (e) => { e.currentTarget.style.backgroundColor = '' } : undefined}
                 >
-                  {line.text}
+                  {/* Line number gutter */}
+                  <span
+                    style={{
+                      width: '36px',
+                      flexShrink: 0,
+                      textAlign: 'right',
+                      paddingRight: '8px',
+                      color: 'var(--vellum-dim)',
+                      fontSize: '11px',
+                      userSelect: 'none',
+                      opacity: 0.5,
+                    }}
+                  >
+                    {lineNum}
+                  </span>
+
+                  {/* Content */}
+                  <span
+                    style={{
+                      flex: 1,
+                      color: isErr ? 'var(--halt)' : 'var(--vellum)',
+                      whiteSpace: wrapOutput ? 'pre-wrap' : 'pre',
+                      wordBreak: wrapOutput ? 'break-word' : 'normal',
+                      minWidth: 0,
+                    }}
+                  >
+                    {line.text}
+                  </span>
+
+                  {/* Timestamp */}
+                  {showTimestamps && line.ms != null && (
+                    <span
+                      style={{
+                        flexShrink: 0,
+                        marginLeft: '12px',
+                        fontSize: '11px',
+                        color: 'var(--vellum-dim)',
+                        opacity: 0.5,
+                        userSelect: 'none',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
+                      {formatMs(line.ms)}
+                    </span>
+                  )}
                 </div>
               )
             })
@@ -208,6 +278,31 @@ function ToolButton({ label, onClick, title }) {
       }}
       onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--vellum)' }}
       onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--vellum-dim)' }}
+    >
+      {label}
+    </button>
+  )
+}
+
+function ToggleButton({ label, active, onClick, title }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      style={{
+        background: active ? 'var(--ink-700)' : 'none',
+        border: '1px solid',
+        borderColor: active ? 'var(--vellum-dim)' : 'var(--rule)',
+        borderRadius: '3px',
+        padding: '1px 8px',
+        fontFamily: "'IBM Plex Sans', sans-serif",
+        fontSize: '11px',
+        color: active ? 'var(--vellum)' : 'var(--vellum-dim)',
+        cursor: 'pointer',
+        lineHeight: '18px',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--vellum)' }}
+      onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'var(--vellum-dim)' }}
     >
       {label}
     </button>
