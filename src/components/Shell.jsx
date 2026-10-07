@@ -4,6 +4,7 @@ import FileTree from './FileTree.jsx'
 import TabBar from './TabBar.jsx'
 import CodeEditor from './CodeEditor.jsx'
 import Terminal from './Terminal.jsx'
+import Console from './Console.jsx'
 import InputPanel from './InputPanel.jsx'
 import StatusBar from './StatusBar.jsx'
 import SettingsPanel from './SettingsPanel.jsx'
@@ -26,6 +27,7 @@ export default function Shell({
   onRun,
   settings,
   onUpdateSetting,
+  consoleState,
 }) {
   const {
     files, activeFile, openFiles, loaded,
@@ -50,6 +52,7 @@ export default function Shell({
   const [breakpoints, setBreakpointsState] = useState([])
   const [showFileSwitcher, setShowFileSwitcher] = useState(false)
   const [shareUrl, setShareUrl] = useState(null)
+  const [outputTab, setOutputTab] = useState('output')
 
   const shellRef = useRef(null)
   const centerRef = useRef(null)
@@ -336,6 +339,20 @@ export default function Shell({
               elapsedMs={elapsedMs}
               onClear={runner.clearOutput}
               onErrorClick={handleErrorClick}
+              activeTab={outputTab}
+              onTabChange={setOutputTab}
+              onConsoleClear={consoleState.clearEntries}
+              onConsoleReset={consoleState.reset}
+              consoleHasEntries={consoleState.entries.length > 0}
+              consoleSlot={
+                <Console
+                  entries={consoleState.entries}
+                  busy={consoleState.busy}
+                  onEvaluate={consoleState.evaluate}
+                  onClear={consoleState.clearEntries}
+                  onReset={consoleState.reset}
+                />
+              }
             />
             <InputPanel visible={status === 'waiting'} onSubmit={sendInput} />
           </div>
