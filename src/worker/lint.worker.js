@@ -14,6 +14,22 @@ function wordEndColumn(source, line, col) {
   return Math.max(col + 1, end + 1)
 }
 
+function addMarker(markers, source, err) {
+  const line = err.line || 1
+  const col = err.column || 1
+  markers.push({
+    severity: 8,
+    startLineNumber: line,
+    startColumn: col,
+    endLineNumber: line,
+    endColumn: wordEndColumn(source, line, col),
+    message: err.hint
+      ? `${err.message}\nHint: ${err.hint}`
+      : err.message,
+    source: 'nova',
+  })
+}
+
 self.onmessage = function (e) {
   const { source, fileName, version } = e.data
   const markers = []
@@ -25,39 +41,19 @@ self.onmessage = function (e) {
     const parser = new Parser(tokens, fileName)
     const ast = parser.parse()
 
+    for (const err of parser.errors) {
+      addMarker(markers, source, err)
+    }
+
     const resolver = new Resolver(fileName)
     const errors = resolver.resolve(ast)
 
     for (const err of errors) {
-      const line = err.line || 1
-      const col = err.column || 1
-      markers.push({
-        severity: 8,
-        startLineNumber: line,
-        startColumn: col,
-        endLineNumber: line,
-        endColumn: wordEndColumn(source, line, col),
-        message: err.hint
-          ? `${err.message}\nHint: ${err.hint}`
-          : err.message,
-        source: 'nova',
-      })
+      addMarker(markers, source, err)
     }
   } catch (err) {
     if (err instanceof LexerError || err instanceof ParseError) {
-      const line = err.line || 1
-      const col = err.column || 1
-      markers.push({
-        severity: 8,
-        startLineNumber: line,
-        startColumn: col,
-        endLineNumber: line,
-        endColumn: wordEndColumn(source, line, col),
-        message: err.hint
-          ? `${err.message}\nHint: ${err.hint}`
-          : err.message,
-        source: 'nova',
-      })
+      addMarker(markers, source, err)
     }
   }
 

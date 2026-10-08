@@ -20,6 +20,7 @@ export class Parser {
     this.fileName = fileName
     this.current = 0
     this.loopDepth = 0
+    this.errors = []
   }
 
   // --- Helpers ---
@@ -393,12 +394,51 @@ export class Parser {
     const body = []
     const start = this.peek()
     while (!this.isAtEnd()) {
-      body.push(this.statement())
+      try {
+        body.push(this.statement())
+      } catch (e) {
+        if (e instanceof ParseError) {
+          this.errors.push(e)
+          this.synchronize()
+        } else {
+          throw e
+        }
+      }
+    }
+    if (this.errors.length > 0 && body.length === 0) {
+      throw this.errors[0]
     }
     const loc = body.length > 0
       ? { line: body[0].loc.line, column: body[0].loc.column, start: body[0].loc.start, end: body[body.length - 1].loc.end }
       : this.locOfToken(start)
-    return AST.Program(body, loc)
+    const program = AST.Program(body, loc)
+    program.errors = this.errors
+    return program
+  }
+
+  synchronize() {
+    while (!this.isAtEnd()) {
+      const t = this.peek()
+      if (t.type === TokenType.KEYWORD) {
+        const kw = t.value
+        if (
+          kw === 'remember' || kw === 'constant' || kw === 'set' ||
+          kw === 'show' || kw === 'check' || kw === 'while' ||
+          kw === 'repeat' || kw === 'count' || kw === 'for' ||
+          kw === 'keep' || kw === 'define' || kw === 'describe' ||
+          kw === 'give' || kw === 'skip' || kw === 'stop' ||
+          kw === 'raise' || kw === 'attempt' || kw === 'use' ||
+          kw === 'save' || kw === 'delete'
+        ) {
+          return
+        }
+        if (kw === 'done') {
+          this.advance()
+          return
+        }
+      }
+      this.advance()
+    }
   }
 
   block() {
@@ -411,9 +451,46 @@ export class Parser {
       !this.checkKeyword('always') &&
       !this.isOrIf()
     ) {
-      stmts.push(this.statement())
+      try {
+        stmts.push(this.statement())
+      } catch (e) {
+        if (e instanceof ParseError) {
+          this.errors.push(e)
+          this.synchronizeBlock()
+        } else {
+          throw e
+        }
+      }
     }
     return stmts
+  }
+
+  synchronizeBlock() {
+    while (!this.isAtEnd()) {
+      const t = this.peek()
+      if (t.type === TokenType.KEYWORD) {
+        const kw = t.value
+        if (
+          kw === 'done' || kw === 'otherwise' ||
+          kw === 'rescue' || kw === 'always'
+        ) {
+          return
+        }
+        if (
+          kw === 'remember' || kw === 'constant' || kw === 'set' ||
+          kw === 'show' || kw === 'check' || kw === 'while' ||
+          kw === 'repeat' || kw === 'count' || kw === 'for' ||
+          kw === 'keep' || kw === 'define' || kw === 'describe' ||
+          kw === 'give' || kw === 'skip' || kw === 'stop' ||
+          kw === 'raise' || kw === 'attempt' || kw === 'use' ||
+          kw === 'save' || kw === 'delete'
+        ) {
+          return
+        }
+      }
+      if (this.isOrIf()) return
+      this.advance()
+    }
   }
 
   statement() {

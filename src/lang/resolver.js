@@ -7,8 +7,34 @@ const GLOBAL_NAMES = new Set([
   'abs', 'min', 'max', 'floor', 'ceil', 'round',
   'sqrt', 'power', 'random', 'random_between',
   'range', 'sleep', 'time_now',
+  'date_now', 'date_format', 'date_parse', 'date_diff', 'date_add',
+  'random_pick', 'random_shuffle', 'random_chance', 'random_id', 'random_sample',
+  'to_list', 'to_map', 'to_json', 'from_json', 'char_from',
   '__save__', '__delete_file__',
 ])
+
+const GLOBAL_RETURN_TYPES = {
+  to_number: 'number',
+  to_text: 'text',
+  to_truth: 'truth',
+  type_of: 'text',
+  same: 'truth',
+  abs: 'number',
+  min: 'number',
+  max: 'number',
+  floor: 'number',
+  ceil: 'number',
+  round: 'number',
+  sqrt: 'number',
+  power: 'number',
+  random: 'number',
+  random_between: 'number',
+  range: 'list',
+  time_now: 'number',
+}
+
+const NUMERIC_OPS = new Set(['-', '*', '/', '%', '^'])
+const COMPARISON_OPS = new Set(['<', '>', '<=', '>=', '==', '!=', 'is', 'is not', 'is a'])
 
 export class Resolver {
   constructor(fileName = 'unknown') {
@@ -19,10 +45,12 @@ export class Resolver {
     this.classDepth = 0
     this.loopDepth = 0
     this.hasWildcardImport = false
+    this.currentReturnType = null
+    this.currentFuncDecls = new Map()
 
     this.pushScope()
     for (const name of GLOBAL_NAMES) {
-      this.currentScope().set(name, true)
+      this.currentScope().set(name, { declared: true, type: GLOBAL_RETURN_TYPES[name] || null })
     }
   }
 
@@ -45,13 +73,21 @@ export class Resolver {
     return this.scopes[this.scopes.length - 1]
   }
 
-  declare(name, loc) {
+  declare(name, loc, type) {
     const scope = this.currentScope()
     if (scope.has(name)) {
       this.report(loc, `'${name}' is already declared in this scope.`)
       return
     }
-    scope.set(name, true)
+    scope.set(name, { declared: true, type: type || null })
+  }
+
+  lookupType(name) {
+    for (let i = this.scopes.length - 1; i >= 0; i--) {
+      const entry = this.scopes[i].get(name)
+      if (entry) return entry.type || null
+    }
+    return null
   }
 
   isDeclared(name) {
@@ -87,6 +123,15 @@ export class Resolver {
     }))
   }
 
+  reportType(loc, message, hint) {
+    this.errors.push(novaError('TypeError', message, {
+      hint: hint || null,
+      file: this.fileName,
+      line: loc ? loc.line : null,
+      column: loc ? loc.column : null,
+    }))
+  }
+
   // --- Block resolution with hoisting ---
 
   resolveBlock(stmts) {
@@ -107,7 +152,8 @@ export class Resolver {
   hoistDeclarations(stmts) {
     for (const stmt of stmts) {
       if (stmt.type === 'FuncDecl') {
-        this.declare(stmt.name, stmt.loc)
+        this.declare(stmt.name, stmt.loc, 'action')
+        this.currentFuncDecls.set(stmt.name, stmt)
       }
       if (stmt.type === 'ClassDecl') {
         this.declare(stmt.name, stmt.loc)
@@ -145,12 +191,28 @@ export class Resolver {
 
   resolveDeclare(node) {
     this.resolveExpr(node.value)
-    this.declare(node.name, node.loc)
+    const declaredType = node.typeHint || null
+    this.declare(node.name, node.loc, declaredType)
+    if (declaredType && declaredType !== 'anything') {
+      const inferredType = this.inferType(node.value)
+      if (inferredType && !this.typesMatch(declaredType, inferredType)) {
+        this.reportType(node.loc, `Expected ${declaredType} for '${node.name}', got ${inferredType}.`)
+      }
+    }
   }
 
   resolveAssign(node) {
     this.resolveExpr(node.value)
     this.resolveAssignTarget(node.target)
+    if (node.target.type === 'Ident' && node.target.name !== 'my') {
+      const declaredType = this.lookupType(node.target.name)
+      if (declaredType && declaredType !== 'anything') {
+        const inferredType = this.inferType(node.value)
+        if (inferredType && !this.typesMatch(declaredType, inferredType)) {
+          this.reportType(node.loc, `Expected ${declaredType} for '${node.target.name}', got ${inferredType}.`)
+        }
+      }
+    }
   }
 
   resolveAssignTarget(target) {
@@ -253,15 +315,25 @@ export class Resolver {
 
   resolveFuncDecl(node) {
     this.functionDepth++
+    const prevReturnType = this.currentReturnType
+    this.currentReturnType = node.returnType || null
     this.pushScope()
     for (const param of node.params) {
-      this.declare(param.name, param.loc)
+      const paramType = param.type || null
+      this.declare(param.name, param.loc, paramType)
       if (param.default) {
         this.resolveExpr(param.default)
+        if (paramType && paramType !== 'anything') {
+          const defaultType = this.inferType(param.default)
+          if (defaultType && !this.typesMatch(paramType, defaultType)) {
+            this.reportType(param.loc, `Default value for '${param.name}' should be ${paramType}, got ${defaultType}.`)
+          }
+        }
       }
     }
     this.resolveBlock(node.body)
     this.popScope()
+    this.currentReturnType = prevReturnType
     this.functionDepth--
   }
 
@@ -272,12 +344,19 @@ export class Resolver {
 
     this.classDepth++
     this.pushScope()
-    this.currentScope().set('my', true)
-    this.currentScope().set('parent', true)
+    this.currentScope().set('my', { declared: true, type: null })
+    this.currentScope().set('parent', { declared: true, type: null })
 
     for (const field of node.fields) {
       if (field.defaultValue) {
         this.resolveExpr(field.defaultValue)
+        const fieldType = field.typeHint || null
+        if (fieldType && fieldType !== 'anything') {
+          const inferredType = this.inferType(field.defaultValue)
+          if (inferredType && !this.typesMatch(fieldType, inferredType)) {
+            this.reportType(field.loc, `Expected ${fieldType} for field '${field.name}', got ${inferredType}.`)
+          }
+        }
       }
     }
 
@@ -295,6 +374,14 @@ export class Resolver {
     }
     if (node.value) {
       this.resolveExpr(node.value)
+      if (this.currentReturnType && this.currentReturnType !== 'anything') {
+        const inferredType = this.inferType(node.value)
+        if (inferredType && !this.typesMatch(this.currentReturnType, inferredType)) {
+          this.reportType(node.loc, `Expected return type ${this.currentReturnType}, got ${inferredType}.`)
+        }
+      }
+    } else if (this.currentReturnType && this.currentReturnType !== 'anything' && this.currentReturnType !== 'nothing') {
+      this.reportType(node.loc, `Expected return type ${this.currentReturnType}, but 'give back' has no value.`)
     }
   }
 
@@ -399,7 +486,8 @@ export class Resolver {
         this.functionDepth++
         this.pushScope()
         for (const param of node.params) {
-          this.declare(param.name, param.loc)
+          const paramType = param.type || null
+          this.declare(param.name, param.loc, paramType)
           if (param.default) {
             this.resolveExpr(param.default)
           }
@@ -447,6 +535,77 @@ export class Resolver {
     const suggestion = this.suggest(name)
     const hint = suggestion ? `Did you mean '${suggestion}'?` : null
     this.report(loc, `'${name}' is not defined.`, hint)
+  }
+
+  // --- Type matching ---
+
+  typesMatch(declared, inferred) {
+    if (!declared || !inferred) return true
+    if (declared === inferred) return true
+    if (!TYPE_NAMES.has(declared) || !TYPE_NAMES.has(inferred)) return true
+    return false
+  }
+
+  // --- Type inference ---
+
+  inferType(node) {
+    if (!node) return null
+
+    switch (node.type) {
+      case 'Num': return 'number'
+      case 'Text': return 'text'
+      case 'Bool': return 'truth'
+      case 'Nothing': return 'nothing'
+      case 'ListLit': return 'list'
+      case 'MapLit': return 'map'
+      case 'Action': return 'action'
+      case 'Interpolation': return 'text'
+
+      case 'Ident':
+        return this.lookupType(node.name)
+
+      case 'Grouping':
+        return this.inferType(node.expression)
+
+      case 'Unary':
+        if (node.operator === '-') return 'number'
+        if (node.operator === 'not') return 'truth'
+        if (node.operator === 'size of') return 'number'
+        if (node.operator === 'ask') return 'text'
+        if (node.operator === 'read') return 'text'
+        return null
+
+      case 'Binary':
+        if (COMPARISON_OPS.has(node.operator)) return 'truth'
+        if (NUMERIC_OPS.has(node.operator)) return 'number'
+        if (node.operator === '+') {
+          const leftType = this.inferType(node.left)
+          const rightType = this.inferType(node.right)
+          if (leftType === 'number' && rightType === 'number') return 'number'
+          if (leftType === 'text' || rightType === 'text') return 'text'
+          return null
+        }
+        if (node.operator === 'and' || node.operator === 'or') return null
+        return null
+
+      case 'Call':
+        if (node.callee.type === 'Ident') {
+          const funcDecl = this.currentFuncDecls.get(node.callee.name)
+          if (funcDecl && funcDecl.returnType) {
+            return funcDecl.returnType
+          }
+          if (GLOBAL_RETURN_TYPES[node.callee.name]) {
+            return GLOBAL_RETURN_TYPES[node.callee.name]
+          }
+        }
+        return null
+
+      case 'New':
+        return node.className.toLowerCase()
+
+      default:
+        return null
+    }
   }
 }
 

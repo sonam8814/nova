@@ -52,6 +52,17 @@ export class ModuleLoader {
     const parser = new Parser(tokens, path)
     const program = parser.parse()
 
+    if (parser.errors.length > 0) {
+      this.loading.delete(path)
+      const err = parser.errors[0]
+      throw new NovaThrow(novaError('SyntaxError', err.message, {
+        hint: err.hint,
+        file: path,
+        line: err.line,
+        column: err.column,
+      }))
+    }
+
     const resolver = new Resolver(path)
     const resolverErrors = resolver.resolve(program)
     if (resolverErrors.length > 0) {

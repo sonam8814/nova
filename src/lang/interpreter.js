@@ -27,6 +27,14 @@ export class ReturnSignal {
   }
 }
 
+export class TailCallSignal {
+  constructor(fn, args) {
+    this._signal = 'tailcall'
+    this.fn = fn
+    this.args = args
+  }
+}
+
 export class Interpreter {
   constructor({ output, onAsk, fileName = 'main.nova', debugHook } = {}) {
     this.output = output || (() => {})
@@ -477,6 +485,16 @@ export class Interpreter {
   }
 
   async execReturn(node) {
+    if (node.value && node.value.type === 'Call' && this.depth > 0) {
+      const callee = await this.evaluate(node.value.callee)
+      if (callee && callee._type === 'function' && !callee._native) {
+        const args = []
+        for (const a of node.value.args) {
+          args.push(await this.evaluate(a))
+        }
+        throw new TailCallSignal(callee, args)
+      }
+    }
     const value = node.value ? await this.evaluate(node.value) : null
     throw new ReturnSignal(value)
   }
@@ -596,67 +614,85 @@ export class Interpreter {
       return await fn._native(args)
     }
 
-    const required = fn._arity !== undefined ? fn._arity : fn.params.filter(p => p.default === null).length
-    const total = fn._maxArity !== undefined ? fn._maxArity : fn.params.length
+    let currentFn = fn
+    let currentArgs = args
 
-    if (args.length < required || args.length > total) {
-      const name = fn.name || 'anonymous action'
-      if (required === total) {
-        throw this.error('TypeError', `'${name}' expects ${total} argument(s), got ${args.length}.`, null, loc)
-      } else {
-        throw this.error('TypeError', `'${name}' expects ${required} to ${total} argument(s), got ${args.length}.`, null, loc)
+    // Trampoline loop for tail-call optimization
+    while (true) {
+      const required = currentFn._arity !== undefined ? currentFn._arity : currentFn.params.filter(p => p.default === null).length
+      const total = currentFn._maxArity !== undefined ? currentFn._maxArity : currentFn.params.length
+
+      if (currentArgs.length < required || currentArgs.length > total) {
+        const name = currentFn.name || 'anonymous action'
+        if (required === total) {
+          throw this.error('TypeError', `'${name}' expects ${total} argument(s), got ${currentArgs.length}.`, null, loc)
+        } else {
+          throw this.error('TypeError', `'${name}' expects ${required} to ${total} argument(s), got ${currentArgs.length}.`, null, loc)
+        }
       }
-    }
 
-    this.depth++
-    if (this.depth > MAX_DEPTH) {
-      throw this.error('DepthError', `Maximum call depth of ${MAX_DEPTH} exceeded.`, 'Check for infinite recursion.', loc)
-    }
-
-    const callEnv = new Environment(fn.closure)
-
-    for (let i = 0; i < fn.params.length; i++) {
-      const param = fn.params[i]
-      const value = i < args.length ? args[i] : await this.evaluate(param.default)
-      if (param.type) {
-        this.checkType(value, param.type, param.name, loc)
+      this.depth++
+      if (this.depth > MAX_DEPTH) {
+        throw this.error('DepthError', `Maximum call depth of ${MAX_DEPTH} exceeded.`, 'Check for infinite recursion.', loc)
       }
-      callEnv.declare(param.name, value, {})
-    }
 
-    const frame = { name: fn.name || '<anonymous>', file: this.fileName, line: loc ? loc.line : null }
-    this.callStack.push(frame)
+      const callEnv = new Environment(currentFn.closure)
 
-    const prevEnv = this.env
-    this.env = callEnv
-
-    const prevDeclaringClass = this.currentDeclaringClass
-    if (fn.declaringClass) {
-      this.currentDeclaringClass = fn.declaringClass
-    }
-
-    let result = null
-
-    try {
-      await this.executeBlock(fn.body)
-    } catch (e) {
-      if (e instanceof ReturnSignal) {
-        result = e.value
-      } else {
-        throw e
+      for (let i = 0; i < currentFn.params.length; i++) {
+        const param = currentFn.params[i]
+        const value = i < currentArgs.length ? currentArgs[i] : await this.evaluate(param.default)
+        if (param.type) {
+          this.checkType(value, param.type, param.name, loc)
+        }
+        callEnv.declare(param.name, value, {})
       }
-    } finally {
-      this.env = prevEnv
-      this.depth--
-      this.callStack.pop()
-      this.currentDeclaringClass = prevDeclaringClass
-    }
 
-    if (fn.returnType) {
-      this.checkType(result, fn.returnType, fn.name || 'return value', loc)
-    }
+      const frame = { name: currentFn.name || '<anonymous>', file: this.fileName, line: loc ? loc.line : null }
+      this.callStack.push(frame)
 
-    return result
+      const prevEnv = this.env
+      this.env = callEnv
+
+      const prevDeclaringClass = this.currentDeclaringClass
+      if (currentFn.declaringClass) {
+        this.currentDeclaringClass = currentFn.declaringClass
+      }
+
+      let result = null
+      let tailCall = null
+
+      try {
+        await this.executeBlock(currentFn.body)
+      } catch (e) {
+        if (e instanceof ReturnSignal) {
+          result = e.value
+        } else if (e instanceof TailCallSignal) {
+          tailCall = e
+        } else {
+          throw e
+        }
+      } finally {
+        this.env = prevEnv
+        this.depth--
+        this.callStack.pop()
+        this.currentDeclaringClass = prevDeclaringClass
+      }
+
+      if (tailCall) {
+        currentFn = tailCall.fn
+        currentArgs = tailCall.args
+        if (currentFn._native) {
+          return await currentFn._native(currentArgs)
+        }
+        continue
+      }
+
+      if (currentFn.returnType) {
+        this.checkType(result, currentFn.returnType, currentFn.name || 'return value', loc)
+      }
+
+      return result
+    }
   }
 
   evalAction(node) {

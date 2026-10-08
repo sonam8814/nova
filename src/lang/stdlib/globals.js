@@ -1,5 +1,8 @@
 import { typeName, toDisplay, isTruthy } from '../values.js'
 import { getMathBuiltins } from './math.js'
+import { getDateBuiltins } from './date.js'
+import { getRandomBuiltins } from './random.js'
+import { getConvertBuiltins } from './convert.js'
 
 function deepEqual(a, b) {
   if (a === b) return true
@@ -30,6 +33,21 @@ function deepEqual(a, b) {
 export function registerGlobals(env, error) {
   const mathBuiltins = getMathBuiltins(error)
   for (const [name, fn] of Object.entries(mathBuiltins)) {
+    env.declare(name, fn, {})
+  }
+
+  const dateBuiltins = getDateBuiltins(error)
+  for (const [name, fn] of Object.entries(dateBuiltins)) {
+    env.declare(name, fn, {})
+  }
+
+  const randomBuiltins = getRandomBuiltins(error)
+  for (const [name, fn] of Object.entries(randomBuiltins)) {
+    env.declare(name, fn, {})
+  }
+
+  const convertBuiltins = getConvertBuiltins(error)
+  for (const [name, fn] of Object.entries(convertBuiltins)) {
     env.declare(name, fn, {})
   }
 
