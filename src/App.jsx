@@ -4,6 +4,12 @@ import { useProject } from './state/useProject.js'
 import { useSettings } from './state/useSettings.js'
 import { useConsole } from './state/useConsole.js'
 import Shell from './components/Shell.jsx'
+import EmbedShell from './components/EmbedShell.jsx'
+
+const IS_EMBED = (() => {
+  const params = new URLSearchParams(window.location.search)
+  return params.get('embed') === '1' || params.get('embed') === 'true'
+})()
 
 function useResolvedTheme(themeSetting) {
   const [resolved, setResolved] = useState(() =>
@@ -41,6 +47,18 @@ export default function App() {
   const handleRun = useCallback(() => {
     runner.run(project.files, project.activeFile)
   }, [runner, project.files, project.activeFile])
+
+  if (IS_EMBED) {
+    return (
+      <EmbedShell
+        project={project}
+        runner={runner}
+        onRun={handleRun}
+        settings={settings}
+        resolvedTheme={resolvedTheme}
+      />
+    )
+  }
 
   return (
     <Shell

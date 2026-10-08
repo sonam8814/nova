@@ -207,6 +207,7 @@ export function useCommands({
   onStepIn, onStepOver, onStepOut, onContinue,
   onClearOutput, onShowOutput, onShowConsole,
   onResetConsole,
+  onExportHTML, onGallery, onExportGist, onImportGist,
 }) {
   return useMemo(() => {
     const cmds = []
@@ -300,6 +301,34 @@ export function useCommands({
     })
 
     cmds.push({
+      id: 'export-html',
+      label: 'Export as HTML',
+      category: 'Project',
+      action: () => onExportHTML?.(),
+    })
+
+    cmds.push({
+      id: 'export-gist',
+      label: 'Export to GitHub Gist',
+      category: 'Project',
+      action: () => onExportGist?.(),
+    })
+
+    cmds.push({
+      id: 'import-gist',
+      label: 'Import from GitHub Gist',
+      category: 'Project',
+      action: () => onImportGist?.(),
+    })
+
+    cmds.push({
+      id: 'gallery',
+      label: 'Open Gallery',
+      category: 'View',
+      action: () => onGallery?.(),
+    })
+
+    cmds.push({
       id: 'settings',
       label: 'Toggle Settings',
       category: 'View',
@@ -344,5 +373,6 @@ export function useCommands({
     onStepIn, onStepOver, onStepOut, onContinue,
     onClearOutput, onShowOutput, onShowConsole,
     onResetConsole,
+    onExportHTML, onGallery, onExportGist, onImportGist,
   ])
 }

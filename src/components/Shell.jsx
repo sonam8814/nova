@@ -14,7 +14,10 @@ import FileSwitcher from './FileSwitcher.jsx'
 import FindInProject from './FindInProject.jsx'
 import ShareDialog from './ShareDialog.jsx'
 import CommandPalette, { useCommands } from './CommandPalette.jsx'
+import Gallery from './Gallery.jsx'
 import { getShareUrl, exportProjectJSON, importProjectJSON } from '../state/sharing.js'
+import { exportStandaloneHTML } from '../state/exportHTML.js'
+import { exportToGist, importFromGist } from '../state/gist.js'
 import { useKeyboardShortcuts } from '../state/useKeyboardShortcuts.js'
 
 const MIN_SIDEBAR = 140
@@ -60,6 +63,7 @@ export default function Shell({
   const [showCommandPalette, setShowCommandPalette] = useState(false)
   const [showFindInProject, setShowFindInProject] = useState(false)
   const [shareUrl, setShareUrl] = useState(null)
+  const [showGallery, setShowGallery] = useState(false)
   const [outputTab, setOutputTab] = useState('output')
   const [showTimestamps, setShowTimestamps] = useState(false)
   const [wrapOutput, setWrapOutput] = useState(true)
@@ -159,6 +163,33 @@ export default function Shell({
     }, 50)
   }, [selectFile])
 
+  const handleExportHTML = useCallback(() => {
+    exportStandaloneHTML(files)
+  }, [files])
+
+  const handleExportGist = useCallback(() => {
+    exportToGist(files)
+  }, [files])
+
+  const handleImportGist = useCallback(async () => {
+    const url = window.prompt('Paste a GitHub Gist URL:')
+    if (!url) return
+    const imported = await importFromGist(url)
+    if (imported) {
+      loadNewProject(imported)
+      if (isFirstRun) dismissWelcome()
+    }
+  }, [loadNewProject, isFirstRun, dismissWelcome])
+
+  const handleGallery = useCallback(() => {
+    setShowGallery(prev => !prev)
+  }, [])
+
+  const handleGalleryLoad = useCallback((galleryFiles) => {
+    loadNewProject(galleryFiles)
+    if (isFirstRun) dismissWelcome()
+  }, [loadNewProject, isFirstRun, dismissWelcome])
+
   const handleRunWithDismiss = useCallback(() => {
     if (isFirstRun) dismissWelcome()
     onRun()
@@ -185,6 +216,10 @@ export default function Shell({
     onShowOutput: () => setOutputTab('output'),
     onShowConsole: () => setOutputTab('console'),
     onResetConsole: consoleState.reset,
+    onExportHTML: handleExportHTML,
+    onGallery: handleGallery,
+    onExportGist: handleExportGist,
+    onImportGist: handleImportGist,
   })
 
   useKeyboardShortcuts({
@@ -308,6 +343,8 @@ export default function Shell({
         files={files}
         onImport={loadNewProject}
         onShare={handleShare}
+        onExportHTML={handleExportHTML}
+        onGallery={handleGallery}
         onStepIn={stepIn}
         onStepOver={stepOver}
         onStepOut={stepOut}
@@ -512,11 +549,10 @@ export default function Shell({
         />
       )}
 
-      {showFindInProject && (
-        <FindInProject
-          files={files}
-          onSelect={handleFindInProjectSelect}
-          onClose={() => setShowFindInProject(false)}
+      {showGallery && (
+        <Gallery
+          onLoad={handleGalleryLoad}
+          onClose={() => setShowGallery(false)}
         />
       )}
 

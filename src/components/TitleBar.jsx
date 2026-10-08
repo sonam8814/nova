@@ -4,7 +4,7 @@ import { exportProjectJSON, importProjectJSON } from '../state/sharing.js'
 const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent)
 const MOD = IS_MAC ? '⌘' : 'Ctrl+'
 
-export default function TitleBar({ status, onRun, onStop, saveFlash, files, onImport, onShare, onStepIn, onStepOver, onStepOut, onContinue, onToggleSidebar }) {
+export default function TitleBar({ status, onRun, onStop, saveFlash, files, onImport, onShare, onExportHTML, onGallery, onStepIn, onStepOver, onStepOut, onContinue, onToggleSidebar }) {
   const handleExport = () => {
     exportProjectJSON(files)
   }
@@ -61,8 +61,10 @@ export default function TitleBar({ status, onRun, onStop, saveFlash, files, onIm
       <div style={{ flex: 1 }} />
 
       <div className="nova-titlebar-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <TitleButton label="Gallery" title="Browse example projects" onClick={onGallery} />
         <TitleButton label="Share" title="Share project link" onClick={onShare} />
         <TitleButton label="Export" title="Download project as JSON" onClick={handleExport} />
+        <TitleButton label="HTML" title="Export as standalone HTML page" onClick={onExportHTML} />
         <TitleButton label="Import" title="Load project from JSON" onClick={handleImport} />
       </div>
 
