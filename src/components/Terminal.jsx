@@ -1,6 +1,11 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
 
 const ERROR_LOC_RE = /^(\w+) at (.+?) line (\d+), column (\d+)/
+const STACK_FRAME_RE = /^\s+at (\w+) \((.+?) line (\d+)\)/
+
+const FOLD_THRESHOLD = 50
+const FOLD_HEAD = 10
+const FOLD_TAIL = 5
 
 function parseErrorLoc(text) {
   const match = text.match(ERROR_LOC_RE)
@@ -8,10 +13,40 @@ function parseErrorLoc(text) {
   return { file: match[2], line: parseInt(match[3], 10), column: parseInt(match[4], 10) }
 }
 
+function parseStackFrame(text) {
+  const match = text.match(STACK_FRAME_RE)
+  if (!match) return null
+  return { name: match[1], file: match[2], line: parseInt(match[3], 10), column: 1 }
+}
+
+function parseClickableLoc(text, stream) {
+  if (stream !== 'err') return null
+  return parseErrorLoc(text) || parseStackFrame(text)
+}
+
+function getLineColor(text, stream) {
+  if (stream === 'err') return 'var(--halt)'
+  if (/^\[warn\]/i.test(text) || /^Warning/i.test(text)) return 'var(--gold)'
+  if (/^\[info\]/i.test(text)) return 'var(--lapis)'
+  if (/^\[ok\]/i.test(text) || /^\[success\]/i.test(text)) return 'var(--sage)'
+  return 'var(--vellum)'
+}
+
 function formatMs(ms) {
   if (ms == null) return ''
   if (ms < 1000) return `+${ms}ms`
   return `+${(ms / 1000).toFixed(1)}s`
+}
+
+function splitOutputLines(output) {
+  const result = []
+  for (const entry of output) {
+    const subLines = entry.text.split('\n')
+    for (const sub of subLines) {
+      result.push({ text: sub, stream: entry.stream, ms: entry.ms })
+    }
+  }
+  return result
 }
 
 export default function Terminal({
@@ -24,6 +59,15 @@ export default function Terminal({
   const containerRef = useRef(null)
   const userScrolledRef = useRef(false)
   const [copied, setCopied] = useState(false)
+  const [folded, setFolded] = useState(true)
+  const prevOutputLenRef = useRef(0)
+
+  useEffect(() => {
+    if (output.length < prevOutputLenRef.current) {
+      setFolded(true)
+    }
+    prevOutputLenRef.current = output.length
+  }, [output])
 
   const handleScroll = useCallback(() => {
     const el = containerRef.current
@@ -47,13 +91,19 @@ export default function Terminal({
   }, [output])
 
   const handleLineClick = useCallback((line) => {
-    if (line.stream !== 'err') return
-    const loc = parseErrorLoc(line.text)
+    const loc = parseClickableLoc(line.text, line.stream)
     if (loc) onErrorClick?.(loc)
   }, [onErrorClick])
 
   const isEmpty = output.length === 0 && status === 'idle'
   const hasOutput = output.length > 0
+
+  const lines = hasOutput ? splitOutputLines(output) : []
+
+  const shouldFold = folded && lines.length > FOLD_THRESHOLD
+  const foldStart = FOLD_HEAD
+  const foldEnd = lines.length - FOLD_TAIL
+  const hiddenCount = shouldFold ? foldEnd - foldStart : 0
 
   return (
     <div
@@ -153,73 +203,117 @@ export default function Terminal({
               Output appears here when you run.
             </span>
           ) : (
-            output.map((line, i) => {
-              const isErr = line.stream === 'err'
-              const loc = isErr ? parseErrorLoc(line.text) : null
-              const lineNum = i + 1
+            <>
+              {lines.map((line, i) => {
+                if (shouldFold && i >= foldStart && i < foldEnd) {
+                  if (i === foldStart) {
+                    return (
+                      <div
+                        key={`fold-${i}`}
+                        onClick={() => setFolded(false)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '2px 12px 2px 44px',
+                          cursor: 'pointer',
+                          color: 'var(--vellum-dim)',
+                          fontStyle: 'italic',
+                          fontSize: '12px',
+                          borderTop: '1px dashed var(--rule-soft)',
+                          borderBottom: '1px dashed var(--rule-soft)',
+                          margin: '2px 0',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--ink-700)' }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '' }}
+                      >
+                        {`... ${hiddenCount} lines hidden (click to show)`}
+                      </div>
+                    )
+                  }
+                  return null
+                }
 
-              return (
-                <div
-                  key={i}
-                  onClick={() => handleLineClick(line)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'baseline',
-                    cursor: loc ? 'pointer' : 'default',
-                    borderRadius: loc ? '2px' : undefined,
-                    padding: '0 12px 0 0',
-                  }}
-                  onMouseEnter={loc ? (e) => { e.currentTarget.style.backgroundColor = 'var(--ink-700)' } : undefined}
-                  onMouseLeave={loc ? (e) => { e.currentTarget.style.backgroundColor = '' } : undefined}
-                >
-                  {/* Line number gutter */}
-                  <span
+                const loc = parseClickableLoc(line.text, line.stream)
+                const isStackFrame = line.stream === 'err' && STACK_FRAME_RE.test(line.text)
+                const lineNum = i + 1
+
+                return (
+                  <div
+                    key={i}
+                    onClick={() => handleLineClick(line)}
                     style={{
-                      width: '36px',
-                      flexShrink: 0,
-                      textAlign: 'right',
-                      paddingRight: '8px',
-                      color: 'var(--vellum-dim)',
-                      fontSize: '11px',
-                      userSelect: 'none',
-                      opacity: 0.5,
+                      display: 'flex',
+                      alignItems: 'baseline',
+                      cursor: loc ? 'pointer' : 'default',
+                      borderRadius: loc ? '2px' : undefined,
+                      padding: '0 12px 0 0',
                     }}
+                    onMouseEnter={loc ? (e) => {
+                      e.currentTarget.style.backgroundColor = 'var(--ink-700)'
+                      if (isStackFrame) {
+                        const span = e.currentTarget.querySelector('[data-content]')
+                        if (span) span.style.textDecoration = 'underline'
+                      }
+                    } : undefined}
+                    onMouseLeave={loc ? (e) => {
+                      e.currentTarget.style.backgroundColor = ''
+                      if (isStackFrame) {
+                        const span = e.currentTarget.querySelector('[data-content]')
+                        if (span) span.style.textDecoration = 'none'
+                      }
+                    } : undefined}
                   >
-                    {lineNum}
-                  </span>
-
-                  {/* Content */}
-                  <span
-                    style={{
-                      flex: 1,
-                      color: isErr ? 'var(--halt)' : 'var(--vellum)',
-                      whiteSpace: wrapOutput ? 'pre-wrap' : 'pre',
-                      wordBreak: wrapOutput ? 'break-word' : 'normal',
-                      minWidth: 0,
-                    }}
-                  >
-                    {line.text}
-                  </span>
-
-                  {/* Timestamp */}
-                  {showTimestamps && line.ms != null && (
+                    {/* Line number gutter */}
                     <span
                       style={{
+                        width: '36px',
                         flexShrink: 0,
-                        marginLeft: '12px',
-                        fontSize: '11px',
+                        textAlign: 'right',
+                        paddingRight: '8px',
                         color: 'var(--vellum-dim)',
-                        opacity: 0.5,
+                        fontSize: '11px',
                         userSelect: 'none',
-                        fontVariantNumeric: 'tabular-nums',
+                        opacity: 0.5,
                       }}
                     >
-                      {formatMs(line.ms)}
+                      {lineNum}
                     </span>
-                  )}
-                </div>
-              )
-            })
+
+                    {/* Content */}
+                    <span
+                      data-content
+                      style={{
+                        flex: 1,
+                        color: getLineColor(line.text, line.stream),
+                        whiteSpace: wrapOutput ? 'pre-wrap' : 'pre',
+                        wordBreak: wrapOutput ? 'break-word' : 'normal',
+                        minWidth: 0,
+                        textDecoration: 'none',
+                      }}
+                    >
+                      {line.text}
+                    </span>
+
+                    {/* Timestamp */}
+                    {showTimestamps && line.ms != null && (
+                      <span
+                        style={{
+                          flexShrink: 0,
+                          marginLeft: '12px',
+                          fontSize: '11px',
+                          color: 'var(--vellum-dim)',
+                          opacity: 0.5,
+                          userSelect: 'none',
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
+                        {formatMs(line.ms)}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </>
           )}
         </div>
       ) : (

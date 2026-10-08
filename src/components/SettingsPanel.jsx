@@ -95,6 +95,20 @@ export default function SettingsPanel({ settings, onUpdate, onClose }) {
           onChange={(val) => onUpdate('minimap', val)}
         />
       </SettingRow>
+
+      <SettingRow label="Theme">
+        <div style={{ display: 'flex', gap: '6px' }}>
+          {[['dark', 'Dark'], ['light', 'Light'], ['system', 'System']].map(([val, label]) => (
+            <TabButton
+              key={val}
+              active={settings.theme === val}
+              onClick={() => onUpdate('theme', val)}
+            >
+              {label}
+            </TabButton>
+          ))}
+        </div>
+      </SettingRow>
     </div>
   )
 }
@@ -120,8 +134,9 @@ function TabButton({ active, onClick, children }) {
     <button
       onClick={onClick}
       style={{
-        width: '32px',
+        minWidth: '32px',
         height: '24px',
+        padding: '0 8px',
         borderRadius: '3px',
         border: active ? '1px solid var(--lapis)' : '1px solid var(--rule)',
         backgroundColor: active ? 'var(--ink-800)' : 'transparent',

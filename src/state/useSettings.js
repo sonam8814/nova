@@ -8,6 +8,7 @@ const DEFAULTS = {
   tabSize: 2,
   wordWrap: false,
   minimap: false,
+  theme: 'dark',
 }
 
 export function useSettings() {

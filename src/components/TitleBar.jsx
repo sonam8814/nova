@@ -4,7 +4,7 @@ import { exportProjectJSON, importProjectJSON } from '../state/sharing.js'
 const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent)
 const MOD = IS_MAC ? '⌘' : 'Ctrl+'
 
-export default function TitleBar({ status, onRun, onStop, saveFlash, files, onImport, onShare, onStepIn, onStepOver, onStepOut, onContinue }) {
+export default function TitleBar({ status, onRun, onStop, saveFlash, files, onImport, onShare, onStepIn, onStepOver, onStepOut, onContinue, onToggleSidebar }) {
   const handleExport = () => {
     exportProjectJSON(files)
   }
@@ -27,6 +27,24 @@ export default function TitleBar({ status, onRun, onStop, saveFlash, files, onIm
         flexShrink: 0,
       }}
     >
+      <button
+        className="nova-sidebar-toggle"
+        onClick={onToggleSidebar}
+        aria-label="Toggle sidebar"
+        style={{
+          background: 'none',
+          border: 'none',
+          color: 'var(--vellum)',
+          cursor: 'pointer',
+          fontSize: '18px',
+          padding: '4px',
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
+        &#9776;
+      </button>
+
       <span
         style={{
           fontFamily: "'Newsreader', serif",
@@ -42,9 +60,11 @@ export default function TitleBar({ status, onRun, onStop, saveFlash, files, onIm
 
       <div style={{ flex: 1 }} />
 
-      <TitleButton label="Share" title="Share project link" onClick={onShare} />
-      <TitleButton label="Export" title="Download project as JSON" onClick={handleExport} />
-      <TitleButton label="Import" title="Load project from JSON" onClick={handleImport} />
+      <div className="nova-titlebar-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <TitleButton label="Share" title="Share project link" onClick={onShare} />
+        <TitleButton label="Export" title="Download project as JSON" onClick={handleExport} />
+        <TitleButton label="Import" title="Load project from JSON" onClick={handleImport} />
+      </div>
 
       <div style={{ width: '1px', height: '20px', backgroundColor: 'var(--rule)', margin: '0 4px' }} />
 

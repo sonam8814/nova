@@ -11,6 +11,7 @@ import StatusBar from './StatusBar.jsx'
 import SettingsPanel from './SettingsPanel.jsx'
 import DebugPanel from './DebugPanel.jsx'
 import FileSwitcher from './FileSwitcher.jsx'
+import FindInProject from './FindInProject.jsx'
 import ShareDialog from './ShareDialog.jsx'
 import CommandPalette, { useCommands } from './CommandPalette.jsx'
 import { getShareUrl, exportProjectJSON, importProjectJSON } from '../state/sharing.js'
@@ -30,13 +31,14 @@ export default function Shell({
   settings,
   onUpdateSetting,
   consoleState,
+  resolvedTheme,
 }) {
   const {
     files, activeFile, openFiles, loaded,
-    isFirstRun, dismissWelcome,
+    isFirstRun, dismissWelcome, dirtyFiles,
     updateFileContent, selectFile, closeFile,
     createFile, deleteFile, renameFile,
-    loadNewProject,
+    reorderFiles, loadNewProject,
   } = project
 
   const {
@@ -47,6 +49,7 @@ export default function Shell({
   } = runner
 
   const [sidebarWidth, setSidebarWidth] = useState(220)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [debugRailWidth, setDebugRailWidth] = useState(260)
   const [outputFrac, setOutputFrac] = useState(0.3)
   const [saveFlash, setSaveFlash] = useState(0)
@@ -55,6 +58,7 @@ export default function Shell({
   const [breakpoints, setBreakpointsState] = useState([])
   const [showFileSwitcher, setShowFileSwitcher] = useState(false)
   const [showCommandPalette, setShowCommandPalette] = useState(false)
+  const [showFindInProject, setShowFindInProject] = useState(false)
   const [shareUrl, setShareUrl] = useState(null)
   const [outputTab, setOutputTab] = useState('output')
   const [showTimestamps, setShowTimestamps] = useState(false)
@@ -144,6 +148,17 @@ export default function Shell({
     setShowCommandPalette(prev => !prev)
   }, [])
 
+  const handleFindInProject = useCallback(() => {
+    setShowFindInProject(prev => !prev)
+  }, [])
+
+  const handleFindInProjectSelect = useCallback((fileName, line) => {
+    selectFile(fileName)
+    setTimeout(() => {
+      editorRef.current?.jumpToLine(line)
+    }, 50)
+  }, [selectFile])
+
   const handleRunWithDismiss = useCallback(() => {
     if (isFirstRun) dismissWelcome()
     onRun()
@@ -186,6 +201,7 @@ export default function Shell({
     onToggleBreakpoint: handleToggleBreakpoint,
     onFileSwitcher: handleFileSwitcher,
     onCommandPalette: handleCommandPalette,
+    onFindInProject: handleFindInProject,
   })
 
   const handleSidebarDrag = useCallback((e) => {
@@ -296,27 +312,38 @@ export default function Shell({
         onStepOver={stepOver}
         onStepOut={stepOut}
         onContinue={continueExec}
+        onToggleSidebar={() => setSidebarOpen(prev => !prev)}
       />
 
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        {/* Sidebar overlay for mobile */}
+        {sidebarOpen && (
+          <div className="nova-sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+        )}
+
         {/* Sidebar */}
-        <div className="nova-fade-panel" style={{ width: sidebarWidth, flexShrink: 0, minHeight: 0 }}>
+        <div className={`nova-fade-panel nova-sidebar${sidebarOpen ? ' nova-sidebar--open' : ''}`} style={{ width: sidebarWidth, flexShrink: 0, minHeight: 0 }}>
           <FileTree
             files={files}
             activeFile={activeFile}
-            onSelect={selectFile}
+            onSelect={(name) => {
+              selectFile(name)
+              setSidebarOpen(false)
+            }}
             onCreate={createFile}
             onDelete={deleteFile}
             onRename={renameFile}
             onLoadExample={(exFiles) => {
               loadNewProject(exFiles)
               if (isFirstRun) dismissWelcome()
+              setSidebarOpen(false)
             }}
           />
         </div>
 
         {/* Sidebar resize handle */}
         <div
+          className="nova-sidebar-handle"
           onPointerDown={handleSidebarDrag}
           style={{
             width: '1px',
@@ -347,6 +374,8 @@ export default function Shell({
             activeFile={activeFile}
             onSelect={selectFile}
             onClose={closeFile}
+            dirtyFiles={dirtyFiles}
+            onReorder={reorderFiles}
           />
 
           {/* Editor or Welcome */}
@@ -370,6 +399,7 @@ export default function Shell({
                 breakpoints={breakpoints.filter(bp => bp.file === activeFile).map(bp => bp.line)}
                 onBreakpointToggle={handleBreakpointToggle}
                 pausedLine={debugState && debugState.file === activeFile ? debugState.line : null}
+                theme={resolvedTheme}
               />
             )}
           </div>
@@ -467,10 +497,26 @@ export default function Shell({
         />
       )}
 
+      {showFindInProject && (
+        <FindInProject
+          files={files}
+          onSelect={handleFindInProjectSelect}
+          onClose={() => setShowFindInProject(false)}
+        />
+      )}
+
       {showCommandPalette && (
         <CommandPalette
           commands={commands}
           onClose={() => setShowCommandPalette(false)}
+        />
+      )}
+
+      {showFindInProject && (
+        <FindInProject
+          files={files}
+          onSelect={handleFindInProjectSelect}
+          onClose={() => setShowFindInProject(false)}
         />
       )}
 

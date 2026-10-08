@@ -39,6 +39,7 @@ export function useProject() {
   const [dirty, setDirty] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [isFirstRun, setIsFirstRun] = useState(false)
+  const [dirtyFiles, setDirtyFiles] = useState(new Set())
 
   const saveTimerRef = useRef(null)
 
@@ -78,6 +79,7 @@ export function useProject() {
     saveTimerRef.current = setTimeout(() => {
       persistNow({ files: nextFiles, activeFile: nextActive, openFiles: nextOpen })
       setDirty(false)
+      setDirtyFiles(new Set())
     }, 500)
   }, [persistNow])
 
@@ -85,6 +87,11 @@ export function useProject() {
     setFiles(prev => {
       const next = { ...prev, [fileName]: content }
       scheduleSave(next, activeFile, openFiles)
+      return next
+    })
+    setDirtyFiles(prev => {
+      const next = new Set(prev)
+      next.add(fileName)
       return next
     })
   }, [activeFile, openFiles, scheduleSave])
@@ -184,6 +191,16 @@ export function useProject() {
     return true
   }, [activeFile, files, scheduleSave])
 
+  const reorderFiles = useCallback((fromIndex, toIndex) => {
+    setOpenFiles(prev => {
+      const next = [...prev]
+      const [moved] = next.splice(fromIndex, 1)
+      next.splice(toIndex, 0, moved)
+      scheduleSave(files, activeFile, next)
+      return next
+    })
+  }, [files, activeFile, scheduleSave])
+
   const dismissWelcome = useCallback(() => {
     setIsFirstRun(false)
   }, [])
@@ -205,6 +222,7 @@ export function useProject() {
     activeFile,
     openFiles,
     dirty: isDirty,
+    dirtyFiles,
     loaded,
     isFirstRun,
     updateFileContent,
@@ -213,6 +231,7 @@ export function useProject() {
     createFile,
     deleteFile,
     renameFile,
+    reorderFiles,
     loadNewProject,
     dismissWelcome,
   }

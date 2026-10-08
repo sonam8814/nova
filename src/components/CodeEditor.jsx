@@ -2,7 +2,7 @@ import { useRef, useCallback, useEffect, useImperativeHandle, forwardRef } from 
 import Editor from '@monaco-editor/react'
 import { LANG_NAME } from '../lang/config.js'
 import { registerNovaLanguage } from '../editor/monarch.js'
-import { defineNightleafTheme, NIGHTLEAF_THEME } from '../editor/theme.js'
+import { defineNightleafTheme, NIGHTLEAF_THEME, defineDaylightTheme, DAYLIGHT_THEME } from '../editor/theme.js'
 import { createDiagnosticsProvider } from '../editor/diagnostics.js'
 import { registerCompletionProvider } from '../editor/completion.js'
 import { registerHoverProvider } from '../editor/hover.js'
@@ -13,13 +13,14 @@ function handleBeforeMount(monaco) {
   if (!languageRegistered) {
     registerNovaLanguage(monaco)
     defineNightleafTheme(monaco)
+    defineDaylightTheme(monaco)
     languageRegistered = true
   }
 }
 
 export default forwardRef(function CodeEditor({
   value, onChange, activeFile, onCursorChange, editorSettings, readOnly = false,
-  breakpoints = [], onBreakpointToggle, pausedLine,
+  breakpoints = [], onBreakpointToggle, pausedLine, theme = 'dark',
 }, ref) {
   const editorRef = useRef(null)
   const monacoRef = useRef(null)
@@ -171,7 +172,7 @@ export default forwardRef(function CodeEditor({
       )}
       <Editor
         defaultLanguage={LANG_NAME}
-        theme={NIGHTLEAF_THEME}
+        theme={theme === 'light' ? DAYLIGHT_THEME : NIGHTLEAF_THEME}
         value={value}
         onChange={handleChange}
         beforeMount={handleBeforeMount}

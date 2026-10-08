@@ -4,6 +4,7 @@ export default function StatusBar({ cursor, activeFile, content, tabSize, onTogg
 
   return (
     <div
+      className="nova-statusbar"
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -30,7 +31,7 @@ export default function StatusBar({ cursor, activeFile, content, tabSize, onTogg
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+      <div className="nova-statusbar-extras" style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
         <span>{wordCount} words</span>
         <span>{lineCount} lines</span>
         <span>Spaces: {tabSize}</span>

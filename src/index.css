@@ -33,6 +33,37 @@
   --focus:      #6D92D8;
 }
 
+:root[data-theme="light"] {
+  /* surfaces — warm light paper */
+  --ink-900:    #F5F3EF;
+  --ink-800:    #EDEAE4;
+  --ink-750:    #E5E2DC;
+  --ink-700:    #DDDAD4;
+  --rule:       #CCC9C2;
+  --rule-soft:  #D8D5CF;
+
+  /* text — dark ink, never pure black */
+  --vellum:     #2C2A26;
+  --vellum-mid: #6E6A60;
+  --vellum-dim: #9E9A90;
+
+  /* pigments — slightly adjusted for light bg readability */
+  --vermilion:  #C43D30;
+  --gold:       #B08830;
+  --verdigris:  #3A8F82;
+  --sage:       #5A8A30;
+  --lapis:      #4A72B8;
+  --plum:       #8F5A88;
+  --graphite:   #9E9A90;
+  --iron:       #6E6A60;
+
+  /* state */
+  --run:        #5A8A30;
+  --halt:       #C43D30;
+  --mark:       #B08830;
+  --focus:      #4A72B8;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -101,4 +132,78 @@ input:focus-visible {
 
 .nova-paused-glyph {
   border-left: 3px solid var(--mark);
+}
+
+/* --- Responsive --- */
+
+.nova-sidebar-toggle {
+  display: none !important;
+}
+
+.nova-sidebar-overlay {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .nova-sidebar-toggle {
+    display: flex !important;
+  }
+
+  .nova-sidebar {
+    display: none !important;
+  }
+  .nova-sidebar.nova-sidebar--open {
+    display: flex !important;
+    position: fixed;
+    top: 49px;
+    left: 0;
+    bottom: 0;
+    z-index: 300;
+    width: 260px !important;
+    background-color: var(--ink-750);
+    border-right: 1px solid var(--rule);
+    animation: nova-slide-in 200ms ease-out;
+  }
+
+  .nova-sidebar-handle {
+    display: none !important;
+  }
+
+  .nova-sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    top: 49px;
+    z-index: 299;
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+
+  .nova-titlebar-actions {
+    display: none !important;
+  }
+
+  .nova-tab {
+    min-height: 44px;
+    padding: 0 16px !important;
+  }
+
+  .nova-statusbar {
+    font-size: 10px !important;
+    height: 28px !important;
+  }
+
+  .nova-statusbar-extras {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .nova-titlebar-btn-label {
+    display: none !important;
+  }
+}
+
+@keyframes nova-slide-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
 }

@@ -53,5 +53,13 @@ export function formatError(sourcesByFile, error) {
     lines.push(`Hint: ${error.hint}`)
   }
 
+  if (error.stack && error.stack.length > 0) {
+    lines.push('')
+    for (const frame of error.stack) {
+      const frameLoc = frame.line != null ? ` line ${frame.line}` : ''
+      lines.push(`  at ${frame.name} (${frame.file}${frameLoc})`)
+    }
+  }
+
   return lines.join('\n')
 }
