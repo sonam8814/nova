@@ -17,7 +17,7 @@ import CommandPalette, { useCommands } from './CommandPalette.jsx'
 import Gallery from './Gallery.jsx'
 import { getShareUrl, exportProjectJSON, importProjectJSON } from '../state/sharing.js'
 import { exportStandaloneHTML } from '../state/exportHTML.js'
-import { exportToGist, importFromGist } from '../state/gist.js'
+import { exportToGist, importFromGist, GistAuthError } from '../state/gist.js'
 import { useKeyboardShortcuts } from '../state/useKeyboardShortcuts.js'
 
 const MIN_SIDEBAR = 140
@@ -167,8 +167,30 @@ export default function Shell({
     exportStandaloneHTML(files)
   }, [files])
 
-  const handleExportGist = useCallback(() => {
-    exportToGist(files)
+  const handleExportGist = useCallback(async () => {
+    const TOKEN_KEY = 'nova:gist-token'
+    let token = null
+    try { token = localStorage.getItem(TOKEN_KEY) } catch { /* storage unavailable */ }
+
+    if (!token) {
+      token = window.prompt(
+        'Paste a GitHub personal access token with the "gist" scope.\n' +
+        'It is stored only in this browser and sent only to api.github.com.'
+      )?.trim()
+      if (!token) return
+    }
+
+    try {
+      const { url } = await exportToGist(files, token)
+      try { localStorage.setItem(TOKEN_KEY, token) } catch { /* storage unavailable */ }
+      try { await navigator.clipboard.writeText(url) } catch { /* clipboard blocked */ }
+      window.prompt('Secret gist created (link copied if allowed):', url)
+    } catch (err) {
+      if (err instanceof GistAuthError) {
+        try { localStorage.removeItem(TOKEN_KEY) } catch { /* storage unavailable */ }
+      }
+      window.alert(`Gist export failed: ${err.message}`)
+    }
   }, [files])
 
   const handleImportGist = useCallback(async () => {

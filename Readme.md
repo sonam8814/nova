@@ -81,7 +81,7 @@ show s.peek()
 - **Embed mode** — add `?embed=1` to the URL for a minimal runnable view you can put in an `<iframe>`
 - **Export as HTML** — a standalone page containing your project
 - **JSON export/import** — move projects between browsers
-- **GitHub Gist** — export copies your project as Markdown and opens gist.github.com to paste into; import loads files from a public gist URL
+- **GitHub Gist** — export creates a secret gist from your project using a personal access token with the `gist` scope (stored only in your browser, sent only to api.github.com); import loads files from a gist URL
 
 ### Offline / PWA
 

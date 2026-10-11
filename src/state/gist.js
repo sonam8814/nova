@@ -1,23 +1,38 @@
 const GIST_API = 'https://api.github.com/gists'
-const GIST_URL = 'https://gist.github.com/'
 
-export async function exportToGist(files) {
-  const parts = []
+const EMPTY_MARKER = 'note (empty file)\n'
+
+export class GistAuthError extends Error {}
+
+export async function exportToGist(files, token) {
+  const payload = {}
   for (const [name, content] of Object.entries(files)) {
-    parts.push(`### ${name}\n\n\`\`\`nova\n${content}\n\`\`\``)
-  }
-  const markdown = `# Nova Project\n\n${parts.join('\n\n')}\n`
-
-  let copied = false
-  try {
-    await navigator.clipboard.writeText(markdown)
-    copied = true
-  } catch {
-    copied = false
+    payload[name] = { content: content.trim() ? content : EMPTY_MARKER }
   }
 
-  window.open(GIST_URL, '_blank', 'noopener')
-  return { copied }
+  const res = await fetch(GIST_API, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      description: 'Nova project',
+      public: false,
+      files: payload,
+    }),
+  })
+
+  if (res.status === 401 || res.status === 403) {
+    throw new GistAuthError('GitHub rejected the token. It needs the "gist" scope.')
+  }
+  if (!res.ok) {
+    throw new Error(`GitHub returned ${res.status}.`)
+  }
+
+  const data = await res.json()
+  return { url: data.html_url }
 }
 
 export async function importFromGist(gistUrl) {
@@ -38,8 +53,7 @@ export async function importFromGist(gistUrl) {
     const source = novaFiles.length > 0 ? novaFiles : entries
 
     for (const [name, file] of source) {
-      const key = name.endsWith('.nova') ? name : name
-      result[key] = file.content || ''
+      result[name] = file.content === EMPTY_MARKER ? '' : (file.content || '')
     }
 
     if (Object.keys(result).length === 0) return null
