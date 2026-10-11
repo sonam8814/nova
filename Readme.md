@@ -54,7 +54,7 @@ show s.peek()
 ## Run locally
 
 ```bash
-git clone https://github.com/<your-username>/nova.git
+git clone https://github.com/sonam8814/nova.git
 cd nova
 npm install
 npm run dev
