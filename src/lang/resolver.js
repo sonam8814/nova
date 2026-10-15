@@ -323,18 +323,21 @@ export class Resolver {
       this.declare(param.name, param.loc, paramType)
       if (param.default) {
         this.resolveExpr(param.default)
-        if (paramType && paramType !== 'anything') {
-          const defaultType = this.inferType(param.default)
-          if (defaultType && !this.typesMatch(paramType, defaultType)) {
-            this.reportType(param.loc, `Default value for '${param.name}' should be ${paramType}, got ${defaultType}.`)
-          }
-        }
+        this.checkParamDefault(param, paramType)
       }
     }
     this.resolveBlock(node.body)
     this.popScope()
     this.currentReturnType = prevReturnType
     this.functionDepth--
+  }
+
+  checkParamDefault(param, paramType) {
+    if (!paramType || paramType === 'anything') return
+    const defaultType = this.inferType(param.default)
+    if (defaultType && !this.typesMatch(paramType, defaultType)) {
+      this.reportType(param.loc, `Default value for '${param.name}' should be ${paramType}, got ${defaultType}.`)
+    }
   }
 
   resolveClassDecl(node) {
@@ -482,20 +485,25 @@ export class Resolver {
         }
         return
 
-      case 'Action':
+      case 'Action': {
         this.functionDepth++
+        const prevReturnType = this.currentReturnType
+        this.currentReturnType = null
         this.pushScope()
         for (const param of node.params) {
           const paramType = param.type || null
           this.declare(param.name, param.loc, paramType)
           if (param.default) {
             this.resolveExpr(param.default)
+            this.checkParamDefault(param, paramType)
           }
         }
         this.resolveBlock(node.body)
         this.popScope()
+        this.currentReturnType = prevReturnType
         this.functionDepth--
         return
+      }
 
       case 'New':
         this.resolveNameUse(node.className, node.loc)

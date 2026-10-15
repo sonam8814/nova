@@ -42,6 +42,11 @@ export class Parser {
     return this.peek().type === type
   }
 
+  // Type names are TYPE tokens, except 'action' and 'nothing', which the lexer emits as keywords.
+  checkTypeName() {
+    return this.check(TokenType.TYPE) || this.checkKeyword('action') || this.checkKeyword('nothing')
+  }
+
   checkKeyword(value) {
     if (this.isAtEnd()) return false
     const t = this.peek()
@@ -812,7 +817,7 @@ export class Parser {
     if (this.matchKeyword('with')) {
       do {
         let type = null
-        if (this.check(TokenType.TYPE)) {
+        if (this.checkTypeName()) {
           type = this.advance().value
         }
         const paramName = this.consume(TokenType.IDENT, "Expected parameter name.")
@@ -826,7 +831,7 @@ export class Parser {
 
     let returnType = null
     if (this.matchKeyword('gives')) {
-      if (this.check(TokenType.TYPE)) {
+      if (this.checkTypeName()) {
         returnType = this.advance().value
       } else if (this.check(TokenType.IDENT)) {
         returnType = this.advance().value
@@ -1089,7 +1094,7 @@ export class Parser {
     if (this.matchKeyword('with')) {
       do {
         let type = null
-        if (this.check(TokenType.TYPE)) {
+        if (this.checkTypeName()) {
           type = this.advance().value
         }
         const name = this.consume(TokenType.IDENT, "Expected parameter name.")
